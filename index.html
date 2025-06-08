@@ -1833,7 +1833,7 @@
 			if (format == 'longname') {
 				mainRow.classList.add('book-row');
 				const volumeNumberLabel = addItem('span', {
-					innerHTML: `Volume ${book.metadata.number}`,
+					innerHTML: `Book ${book.metadata.number}`,
 				});
 				const pagesLabel = addItem('span', {
 					innerHTML: `<span class="${mb.darkTheme ? 'fa-solid' : 'fa-regular'} fa-file glyph-dark"></span>&nbsp;${book.media.pagesCount}`,
@@ -1860,7 +1860,7 @@
 				secondRow.textContent = book.metadata.title;
 			} else if (format == 'compact') {
 				const volumeNumberLabel = addItem('span', {
-					innerHTML: `Volume ${book.metadata.number}`
+					innerHTML: `Book ${book.metadata.number}`
 				});
 				const pagesLabel = addItem('span', {
 					innerHTML: `<span class="${mb.darkTheme ? 'fa-solid' : 'fa-regular'} fa-file glyph-dark"></span>&nbsp;${book.media.pagesCount}`,
