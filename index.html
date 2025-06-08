@@ -197,7 +197,7 @@
 
 			<div class="login-buttons">
 				<div class="remember-me-container">
-					<input type="checkbox" id="rememberMe" class="remember-me-checkbox">
+					<input type="checkbox" id="rememberMe" class="remember-me-checkbox" checked>
 					<label for="rememberMe" class="remember-me-label">Remember Me</label>
 				</div>
 				<button class="login-button" onclick="login()">Login</button>
@@ -400,13 +400,15 @@
 			mediaCache: new Map(), 	//Media cache table structure
 			cacheLimit: 250,			//Limit of items in media cache
 		}
-
+			
 		//MB Local Storage Update
-		rememberMe.checked = (mb.rememberMe == 'true');
+		if (mb.rememberMe !== null) {
+   			rememberMe.checked = (mb.rememberMe == 'true');
+		}
 
-		//Questa cosa qui spostarla quando uno chiude la finestra!
-		if (mb.rememberMe != 'true') {
-			localStorage.removeItem('mbAuthHeader');
+		//Only remove auth header if remember me is explicitly false
+		if (mb.rememberMe === 'false') {
+   			localStorage.removeItem('mbAuthHeader');
 		};
 
 		//MB Theme Management 
@@ -1877,6 +1879,7 @@
 					innerHTML: `Vol.${book.metadata.number}`
 				});
 				const timeLabel = addItem('span', {
+				
 					innerHTML: `<span class='${mb.darkTheme ? 'fa-solid' : 'fa-regular'} fa-clock glyph-dark'></span>&nbsp;${dateString}`
 				});
 
