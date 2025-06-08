@@ -32,7 +32,15 @@
 	<div id="mainUI">
 		<div id="menuBars">
 			<div id="stickyContainer" class="hidden">
-				<ul id="librariesList"></ul>
+				<div class="libraries-scroll-container">
+					<div id="scrollLeftBtn" class="library-scroll-button library-scroll-left">
+						<span class="fa-solid fa-chevron-left glyph-dark"></span>
+					</div>
+					<ul id="librariesList"></ul>
+					<div id="scrollRightBtn" class="library-scroll-button library-scroll-right">
+						<span class="fa-solid fa-chevron-right glyph-dark"></span>
+					</div>
+				</div>
 				<ul id="librariesRightBlock">
 					<li id="fullscreenChanger" title="Toggle Fullscreen" class="library-item">
 						<div class="button-wrapper">
@@ -1028,30 +1036,19 @@
 		stripPrevPage.addEventListener('click', () => stepPageChange(-1));
 		stripNextPage.addEventListener('click', () => stepPageChange(1));
 
-		function updateStickyMenu() {
-			const containerWidth = mainUI.getBoundingClientRect().width;
-
-			if (containerWidth - mb.libSizer.rightmin - mb.libSizer.large >= 0) {
-				document.body.classList.remove('sticky-medium');
-				document.body.classList.remove('sticky-small');
-			} else if (containerWidth - mb.libSizer.rightmin - mb.libSizer.medium >= 0) {
-				document.body.classList.remove('sticky-medium');
-				document.body.classList.remove('sticky-small');
-				document.body.classList.add('sticky-medium');
-			} else {
-				document.body.classList.remove('sticky-medium');
-				document.body.classList.remove('sticky-small');
-				document.body.classList.add('sticky-small');
-			};
-
-			if (containerWidth - mb.filterSizer >= 0) {
-				extraButtons.classList.remove('filter-small')
-			} else {
-				extraButtons.classList.add('filter-small')
-			}
-
+	function updateStickyMenu() {
+		const containerWidth = mainUI.getBoundingClientRect().width;
+		
+		// We don't need to worry about library items fitting 
+		// since they'll scroll horizontally now
+		
+		if (containerWidth - mb.filterSizer >= 0) {
+			extraButtons.classList.remove('filter-small');
+		} else {
+			extraButtons.classList.add('filter-small');
 		}
-
+	}
+	
 		window.addEventListener('resize', () => {
 			clearTimeout(mb.resizeTimeout);
 			mb.resizeTimeout = setTimeout(() => {
@@ -1208,32 +1205,43 @@
 			const filterButtonSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mb-filter-button-size'));
 			const searchFieldSize = libLargeSize;
 			const margin = 10;
-
+	
 			const libraries = await callAPI('/api/v1/libraries');
 			libraries.sort((a, b) => a.name.localeCompare(b.name));
 			await displayLibraries(libraries);
-
-			const rightBlockButtons = librariesRightBlock.childElementCount - 1;
-			document.documentElement.style.setProperty('--mb-num-buttons', rightBlockButtons - 1);
-
-			const libNum = libraries.length;
-			const mainLibAndMenu = margin + libLargeSize + 40;
-			mb.libSizer.large = mainLibAndMenu + libNum * (libLargeSize + gapSize);
-			mb.libSizer.medium = mainLibAndMenu + libNum * (libSmallSize + gapSize);
-			mb.libSizer.rightmin = margin + rightBlockButtons * (libSmallSize + gapSize) + searchFieldSize + gapSize;
-
-			mb.filterSizer = mb.filterButtons.length * (100 + gapSize) + filterButtonSize + 2 * margin;
-
-			updateStickyMenu();
+			
+			// Ensure proper layout of library navigation
+			const stickyContainer = document.getElementById('stickyContainer');
+			stickyContainer.style.display = 'flex';
+			stickyContainer.style.justifyContent = 'space-between';
+			stickyContainer.style.width = '100%';
+			
+			const librariesScrollContainer = document.querySelector('.libraries-scroll-container');
+			librariesScrollContainer.style.flex = '1 1 auto';
+			librariesScrollContainer.style.overflow = 'hidden';
+			
+			const librariesRightBlock = document.getElementById('librariesRightBlock');
+			librariesRightBlock.style.display = 'flex';
+			librariesRightBlock.style.flexShrink = '0';
+			
+			// Initialize scrolling functionality
+			initLibraryScroll();
 		}
 
 
 		// This function is called when a library is selected, it manages the library menu and library naming in the URL
 		function libraryHighlight(libraryId, withMenu) {
-			document.querySelectorAll('.library-item').forEach(section => section.classList.remove('highlighted'));
-			document.querySelectorAll('.library-item').forEach(section => section.classList.remove('with-menu'));
-			document.getElementById(libraryId).classList.add('highlighted');
-			if (withMenu) document.getElementById(libraryId).classList.add('with-menu');
+			document.querySelectorAll('.library-item').forEach(section => {
+				section.classList.remove('highlighted');
+				section.classList.remove('with-menu');
+			});
+  
+ 
+			const selectedItem = document.getElementById(libraryId);
+			if (selectedItem) {
+				selectedItem.classList.add('highlighted');
+				if (withMenu) selectedItem.classList.add('with-menu');
+			}
 		}
 
 		async function getFilteredSeries(filterTitle, serieId) {
@@ -1672,6 +1680,9 @@
 				});
 
 				librariesList.append(listItem);
+
+				// Initialize proper scrolling
+				initLibraryScroll();
 			});
 
 		}
@@ -1879,7 +1890,6 @@
 					innerHTML: `Vol.${book.metadata.number}`
 				});
 				const timeLabel = addItem('span', {
-				
 					innerHTML: `<span class='${mb.darkTheme ? 'fa-solid' : 'fa-regular'} fa-clock glyph-dark'></span>&nbsp;${dateString}`
 				});
 
@@ -1910,12 +1920,12 @@
 					className: 'unread-book'
 				});
 				bookStatus.append(unreadBookBadge);
-			}
+						}
 
 			const markAsRead = addItem('div', {
 				className: 'mini-buttons mark-as-read',
 				title: 'Mark book as read',
-				innerHTML: `<span class="fa-regular fa-circle-check"></span>`
+				innerHTML: `<span class="fa-regular fa-circle-check"></span>` 
 			});
 			markAsRead.addEventListener('click', () => {
 				event.stopPropagation();
@@ -3234,7 +3244,7 @@
 			const startCover = ((rd.spreadsArray[oldindex].spreadKind == 'cover-page') || (rd.spreadsArray[oldindex].spreadKind == 'back-cover'));
 			const stopCover = ((rd.spreadsArray[index].spreadKind == 'cover-page') || (rd.spreadsArray[index].spreadKind == 'back-cover'));
 
-			//turnDirection can be 'turn-right' or 'turn-left'
+			//turnDirectioncan be 'turn-right' or 'turn-left'
 			rd.foreEdgeL.style.transition = 'clip-path 0.3s';
 			rd.foreEdgeR.style.transition = 'clip-path 0.3s';
 			rd.dropShadowL.style.transition = 'margin 0.3s, opacity 0.5s';
@@ -3333,7 +3343,7 @@
 					newSpreadShadowL.animate(...animShadowFWD('right', turnTime, easeFull));
 					newSpreadShadowR.animate(...animShadowBWD('left', turnTime, easeFull));
 
-					rightPage.animate(appearR2L, animData);
+					rightPage.animate(appearL2R, animData);
 					leftPage.animate(appearL2R_sildeinR2L, animData).finished.then(() => hideOldSpread(index, oldindex));
 					rd.dropShadowL.animate(
 						[{ right: '100%' }],
@@ -3427,7 +3437,7 @@
 			populateSpread(localNewSpreadIndex);
 
 			// TODO
-			// It always call spreadSetFocusSmoothDelay, because when in horiontal mode the target is 
+			// It always call spreadSetFocusSmooth, because when in horiontal mode the target is 
 			// center and there's no scrolling happening in that case, page turn is treated separately 
 			// This adds a slight delay when jumping cover to cover
 			spreadSetFocusSmoothDelay(targetSpreadFocus);
@@ -3621,6 +3631,10 @@
 			await executeFade(0);
 		}
 
+		
+
+
+
 		// This is the most important function, it updates the history and then passes the path to the loadContent function that does all the work
 		// In MB the navigateTo function with a proper path form will open the different sections and activate various states.
 		function navigateTo(path) {
@@ -3629,6 +3643,7 @@
 		}
 
 		// Lazy-loading setup with Intersection Observer
+
 		const lazyLoadingObserver = new IntersectionObserver(async (entries, observer) => {
 			entries.forEach(async (entry) => {
 				if (entry.isIntersecting) {
@@ -3732,6 +3747,7 @@
 		enableTouchResponse(touchPanel, 30, handleRightArrow, handleLeftArrow, null, handleCloseReader);
 		enableTouchResponse(thumbStrip, 20, null, null, handleLargeThumbs, handleSmallThumbs);
 
+		initLibraryScroll();
 	</script>
 </body>
 

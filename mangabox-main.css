@@ -258,16 +258,92 @@ a {
 	flex-wrap: nowrap;
 }
 
-#librariesList {
-	display: grid;
-	grid-auto-flow: column;
-	gap: var(--mb-library-gap);
-	list-style-type: none;
-	padding: 0;
-	margin: 0;
-	height: var(--mb-button-size);
+.libraries-scroll-container {
+  display: flex;
+  flex: 1 1 auto;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
 
-	/*background-color: lightblue;*/
+#librariesList {
+  cursor: grab;
+  padding-left: 0;
+}
+
+#librariesList.grabbing {
+  cursor: grabbing;
+}
+
+/* Fix spacing issues */
+#stickyContainer {
+  padding: 0;
+  height: 48px;
+}
+
+/* Add some space between libraries list and right controls */
+#librariesRightBlock {
+  margin-right: 5px;
+}
+
+/* Make sure highlighted state works properly */
+.library-item.highlighted {
+  width: auto;
+  min-width: var(--mb-button-size);
+  max-width: var(--mb-library-large);
+}
+
+#librariesList {
+	display: flex;
+	flex-wrap: nowrap;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: thin;
+	-ms-overflow-style: none; /* IE and Edge */
+	scroll-behavior: smooth;
+	padding-bottom: 5px; /* Space for scrollbar if visible */
+	-webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+#librariesList {
+  -webkit-overflow-scrolling: touch;
+  cursor: grab;
+  scrollbar-width: none; /* Firefox */
+}
+
+#librariesList::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
+
+#librariesList.grabbing {
+  cursor: grabbing;
+  user-select: none;
+}
+
+#librariesList::-webkit-scrollbar {
+	height: 4px;
+}
+
+#librariesList::-webkit-scrollbar-thumb {
+	background-color: rgba(var(--mb-accent-rgb), 0.5);
+	border-radius: 2px;
+}
+
+#librariesList::-webkit-scrollbar-track {
+	background: var(--mb-background-soft);
+}
+
+/* Adjust the margin/padding of library items for better spacing */
+.library-item {
+	flex: 0 0 auto;
+	margin-right: var(--mb-library-gap);
+	white-space: nowrap;
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+	transition: width 0.3s ease;
+	width: var(--mb-button-size);
+	overflow: hidden;
 }
 
 #librariesRightBlock {
@@ -385,7 +461,7 @@ a {
 	user-select: none;
 	box-sizing: border-box;
 	padding: calc(0.5*(var(--mb-button-size) - var(--mb-span-size)));
-	width: var(--mb-library-large);
+	width: var(--mb-button-size); /* Default to small button size */
 	margin: 0px;
 	border-radius: 8px;
 	display: flex;
@@ -397,13 +473,34 @@ a {
 	overflow: hidden;
 	font-size: 16px;
 	height: var(--mb-button-size);
-	transition: background-color 0.3s ease, width 0.3s ease;
-	/*text-transform: uppercase;*/
-	/*box-shadow: 0px 2px 5px rgba(0,0,0,0.15);*/
 }
 
-.library-item:not(:has(.library-name)) {
-	width: var(--mb-button-size);
+/* Only expand the width when library-name is visible */
+.library-item.highlighted {
+    width: var(--mb-library-large);
+}
+
+.library-item.highlighted.with-menu {
+    width: var(--mb-library-large-with-menu);
+}
+
+/* Update library name display */
+.library-name {
+    width: var(--mb-library-name);
+    min-width: var(--mb-library-name);
+    text-align: left;
+    padding: 5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* Show library name only on highlighted items */
+.library-item.highlighted .library-name {
+    display: block;
+    opacity: 1;
 }
 
 .library-item.search-field {
@@ -728,6 +825,10 @@ a {
 	-webkit-box-orient: vertical;
 	-webkit-line-clamp: 2;
 	line-clamp: 2;
+	display: none;
+  	opacity: 0;
+  	transition: opacity 0.3s ease;
+
 }
 
 #stripPrevPage,
@@ -1389,6 +1490,7 @@ body.sticky-medium #stickyContainer .library-name {
 }
 
 body.sticky-medium #stickyContainer .library-item.highlighted .library-name {
+	display: block;
 	opacity: 1;
 }
 
@@ -1566,8 +1668,39 @@ body.sticky-small #seriesMiniHeader {
 	pointer-events: auto;
 }
 
-/*
- .scrollbox-scrollbar:hover .scrollbox-thumb {
-	background: var(--mb-accent);
- }
-*/
+/* Add to your mangabox-main.css file */
+.libraries-scroll-container {
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.library-scroll-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  background-color: var(--mb-hover-color);
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 10;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.library-scroll-button:hover {
+  opacity: 1;
+  background-color: var(--mb-background-hard);
+}
+
+.library-scroll-left {
+  margin-right: 5px;
+}
+
+.library-scroll-right {
+  margin-left: 5px;
+}
