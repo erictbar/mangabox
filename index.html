@@ -397,6 +397,28 @@
 			prefersDarkMode: window.matchMedia('(prefers-color-scheme: dark)'),
 
 		}
+		//TODO: make this a function that repsonds to theme changes and create/colorizes the blocks? and maybe use it at bootsequence
+		const colorValues = getComputedStyle(document.documentElement)
+			.getPropertyValue('--mb-swatches-hi')
+			.match(/hsl\([^)]*\)/g);
+
+		colorValues.forEach((value, index) => {
+			const appleColor = [0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1];
+			const colorSwatch = addItem('span', {
+				className: 'color-swatch',
+				innerHTML: appleColor[index] == 1 ? '<i class="fa-brands fa-apple"></i>' : '',
+				style: {
+					backgroundColor: value,
+				},
+			});
+			colorSwatch.addEventListener('click', () => {
+				event.stopPropagation();
+				mb.accentColor = index;
+				applyAccent();
+			});
+			colorSwatchBar.append(colorSwatch);
+		});
+
 
 		//MB API Call Function 
 		async function callAPI(API_url, method = 'GET', body = null, returnval = true) {
