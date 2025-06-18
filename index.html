@@ -203,7 +203,7 @@
 
 			<div class="login-buttons">
 				<div class="remember-me-container">
-					<input type="checkbox" id="rememberMe" class="remember-me-checkbox">
+					<input type="checkbox" id="rememberMe" class="remember-me-checkbox" checked>
 					<label for="rememberMe" class="remember-me-label">Remember Me</label>
 				</div>
 				<button class="login-button" onclick="login()">Login</button>
@@ -495,13 +495,13 @@
 		}
 
 
-
+			
 		//MB Local Storage Update
-		rememberMe.checked = (mb.rememberMe == 'true');
+   			rememberMe.checked = (mb.rememberMe == 'true');
 
-		//Questa cosa qui spostarla quando uno chiude la finestra!
+		//Only remove auth header if remember me is explicitly false
 		if (mb.rememberMe != 'true') {
-			localStorage.removeItem('mbAuthHeader');
+   			localStorage.removeItem('mbAuthHeader');
 		};
 
 		//MB Theme Management 
@@ -2040,7 +2040,7 @@
 			if (format == 'longname') {
 				mainRow.classList.add('book-row');
 				const volumeNumberLabel = addItem('span', {
-					innerHTML: `Volume ${book.metadata.number}`,
+					innerHTML: `Book ${book.metadata.number}`,
 				});
 				const pagesLabel = addItem('span', {
 					innerHTML: `<span class="${mb.darkTheme ? 'fa-solid' : 'fa-regular'} fa-file glyph-dark"></span>&nbsp;${book.media.pagesCount}`,
@@ -2067,7 +2067,7 @@
 				secondRow.textContent = book.metadata.title;
 			} else if (format == 'compact') {
 				const volumeNumberLabel = addItem('span', {
-					innerHTML: `Volume ${book.metadata.number}`
+					innerHTML: `Book ${book.metadata.number}`
 				});
 				const pagesLabel = addItem('span', {
 					innerHTML: `<span class="${mb.darkTheme ? 'fa-solid' : 'fa-regular'} fa-file glyph-dark"></span>&nbsp;${book.media.pagesCount}`,
@@ -2083,7 +2083,7 @@
 					: '';
 
 				const volumeNumberLabelShort = addItem('span', {
-					innerHTML: `Vol.${book.metadata.number}`
+					innerHTML: `Book ${book.metadata.number}`
 				});
 				const timeLabel = addItem('span', {
 					innerHTML: `<span class='${mb.darkTheme ? 'fa-solid' : 'fa-regular'} fa-clock glyph-dark'></span>&nbsp;${dateString}`
