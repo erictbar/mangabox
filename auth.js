@@ -1,12 +1,24 @@
 // script.js
 
-// Show the login dialog if no auth header or base URL is available
-if (!localStorage.getItem('mbAuthHeader') || !localStorage.getItem('mbBaseUrl')) {
-	if (localStorage.getItem('mbBaseUrl')) {
-		document.getElementById('serverUrl').value = localStorage.getItem('mbBaseUrl');
+// Wait for DOM to be ready before checking authentication
+document.addEventListener('DOMContentLoaded', function() {
+	console.log('Auth script loaded');
+	
+	// Show the login dialog if no auth header or base URL is available
+	if (!localStorage.getItem('mbAuthHeader') || !localStorage.getItem('mbBaseUrl')) {
+		console.log('No auth found, showing login dialog');
+		if (localStorage.getItem('mbBaseUrl')) {
+			const serverUrlField = document.getElementById('serverUrl');
+			if (serverUrlField) {
+				serverUrlField.value = localStorage.getItem('mbBaseUrl');
+			}
+		}
+		showLoginDialog();
+	} else {
+		console.log('Auth found, hiding login dialog');
+		hideLoginDialog();
 	}
-	showLoginDialog();
-}
+});
 
 function login() {
 	let mbBaseUrl = document.getElementById('serverUrl').value;
@@ -52,9 +64,23 @@ function login() {
 }
 
 function showLoginDialog() {
-	document.getElementById('authContainer').classList.remove('hidden');
+	console.log('Showing login dialog');
+	const authContainer = document.getElementById('authContainer');
+	if (authContainer) {
+		authContainer.classList.remove('hidden');
+		console.log('Login dialog shown');
+	} else {
+		console.error('authContainer element not found');
+	}
 }
 
 function hideLoginDialog() {
-	document.getElementById('authContainer').classList.add('hidden');
+	console.log('Hiding login dialog');
+	const authContainer = document.getElementById('authContainer');
+	if (authContainer) {
+		authContainer.classList.add('hidden');
+		console.log('Login dialog hidden');
+	} else {
+		console.error('authContainer element not found');
+	}
 }

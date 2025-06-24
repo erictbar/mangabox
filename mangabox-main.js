@@ -323,18 +323,104 @@ function isSectionHidden(item) {
 
 // Navigation function
 function navigateTo(hash) {
+	console.log('Navigating to:', hash);
 	window.location.hash = hash;
+	
+	// Show appropriate content based on hash
+	if (hash === '#dashboard') {
+		showDashboard();
+	}
+}
+
+// Show dashboard content
+function showDashboard() {
+	console.log('Showing dashboard');
+	
+	// Hide all sections first
+	const sections = document.querySelectorAll('.section');
+	sections.forEach(section => sectionHide(section));
+	
+	// Show main container content
+	const mainContainer = document.getElementById('mainContainer');
+	if (mainContainer) {
+		mainContainer.style.display = 'block';
+		console.log('Main container shown');
+	}
+	
+	// Ensure the main UI is visible
+	const mainUI = document.getElementById('mainUI');
+	if (mainUI) {
+		mainUI.style.display = 'block';
+		console.log('Main UI container shown');
+	}
+	
+	// You can add more dashboard-specific content here
 }
 
 // Fetch libraries function
 async function fetchLibraries() {
 	try {
+		console.log('Fetching libraries...');
 		const libraries = await callAPI('/api/v1/libraries');
 		libraries.sort((a, b) => a.name.localeCompare(b.name));
 		console.log('Libraries loaded:', libraries);
-		// Add your library display logic here
+		
+		// Display libraries in the UI
+		displayLibraries(libraries);
 	} catch (error) {
 		console.error('Error fetching libraries:', error);
+	}
+}
+
+// Display libraries in the UI
+function displayLibraries(libraries) {
+	console.log('Displaying libraries:', libraries);
+	const librariesList = document.getElementById('librariesList');
+	if (!librariesList) {
+		console.error('librariesList element not found');
+		return;
+	}
+	
+	console.log('Libraries list element found, clearing content');
+	// Clear existing content
+	librariesList.innerHTML = '';
+	
+	if (!libraries || libraries.length === 0) {
+		console.log('No libraries to display');
+		librariesList.innerHTML = '<li style="color: white; padding: 10px;">No libraries found</li>';
+		return;
+	}
+	
+	// Add each library as a list item
+	libraries.forEach((library, index) => {
+		console.log(`Adding library ${index + 1}:`, library.name);
+		const listItem = document.createElement('li');
+		listItem.className = 'library-item';
+		listItem.style.color = 'white'; // Force white text for visibility
+		listItem.innerHTML = `
+			<div class="button-wrapper">
+				<span class="fa-solid fa-book glyph-dark"></span>
+				<span class="library-name">${library.name}</span>
+			</div>
+		`;
+		listItem.addEventListener('click', () => {
+			console.log('Library clicked:', library.name);
+			// Add library navigation logic here
+		});
+		librariesList.appendChild(listItem);
+	});
+	
+	console.log(`Successfully displayed ${libraries.length} libraries`);
+	
+	// Update the temp content to show library count
+	const tempContent = document.getElementById('tempVisibleContent');
+	if (tempContent) {
+		tempContent.innerHTML = `
+			<h3>MangaBox - Main UI Loaded</h3>
+			<p>✅ Authentication successful</p>
+			<p>✅ Main UI initialized</p>
+			<p>✅ Libraries loaded: ${libraries.length}</p>
+		`;
 	}
 }
 
@@ -358,19 +444,60 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 function bootSequence() {
+	console.log('Boot sequence starting');
 	// Set up initial theme and layout
 	changeTheme();
 	applyAccent();
 	
+	console.log('Auth check:', mb.authHeader, mb.baseUrl);
+	
 	// Check authentication
 	if (mb.authHeader && mb.baseUrl) {
 		// User is logged in, load main interface
+		console.log('User authenticated, showing main UI');
 		sectionHide(authContainer);
 		sectionShow(stickyContainer);
+		
+		// Add some debug info to see if sticky container is visible
+		if (stickyContainer) {
+			console.log('Sticky container classes:', stickyContainer.className);
+			console.log('Sticky container display:', getComputedStyle(stickyContainer).display);
+		}
+		
 		fetchLibraries();
 		navigateTo('#dashboard');
+		
+		// Add temporary visible content for testing
+		const tempContent = document.createElement('div');
+		tempContent.id = 'tempVisibleContent';
+		tempContent.style.cssText = `
+			position: fixed;
+			top: 100px;
+			left: 20px;
+			background: #333;
+			color: white;
+			padding: 20px;
+			border-radius: 8px;
+			z-index: 1000;
+			font-family: Arial, sans-serif;
+		`;
+		tempContent.innerHTML = `
+			<h3>MangaBox - Main UI Loaded</h3>
+			<p>✅ Authentication successful</p>
+			<p>✅ Main UI initialized</p>
+			<p>Libraries loading...</p>
+		`;
+		document.body.appendChild(tempContent);
+		
+		// Remove after 5 seconds
+		setTimeout(() => {
+			if (tempContent.parentNode) {
+				tempContent.parentNode.removeChild(tempContent);
+			}
+		}, 5000);
 	} else {
 		// Show login form
+		console.log('User not authenticated, showing login form');
 		sectionShow(authContainer);
 		sectionHide(stickyContainer);
 	}

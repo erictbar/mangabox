@@ -32,7 +32,7 @@
 	<meta http-equiv="Expires" content="0" />
 
 	<!-- Content Security Policy: secure configuration -->
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://fonts.googleapis.com;" />
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://fonts.googleapis.com;" />
 
 	<!-- Discord RPC Integration -->
 	<script src="discord-rpc.js"></script>
@@ -196,7 +196,7 @@
 	</div>
 
 	<!-- Authentication UI -->
-	<div id="authContainer" class="hidden">
+	<div id="authContainer">
 		<div id="authBox">
 			<div id="authHeader">
 				<img id="authLogo" src="mangabox-logo-new-with-name.svg" alt="MangaBox Logo">
