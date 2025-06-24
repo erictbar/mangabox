@@ -1755,3 +1755,8 @@ body.sticky-small #seriesMiniHeader {
 	background: var(--mb-accent);
  }
 */
+
+/* --- Ensure .hidden always hides elements --- */
+.hidden {
+	display: none !important;
+}

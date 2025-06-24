@@ -1,24 +1,16 @@
 // script.js
 
-// Wait for DOM to be ready before checking authentication
-document.addEventListener('DOMContentLoaded', function() {
-	console.log('Auth script loaded');
-	
-	// Show the login dialog if no auth header or base URL is available
-	if (!localStorage.getItem('mbAuthHeader') || !localStorage.getItem('mbBaseUrl')) {
-		console.log('No auth found, showing login dialog');
-		if (localStorage.getItem('mbBaseUrl')) {
-			const serverUrlField = document.getElementById('serverUrl');
-			if (serverUrlField) {
-				serverUrlField.value = localStorage.getItem('mbBaseUrl');
-			}
-		}
-		showLoginDialog();
-	} else {
-		console.log('Auth found, hiding login dialog');
-		hideLoginDialog();
+// Show the login dialog if no auth header or base URL is available
+if (!localStorage.getItem('mbAuthHeader') || !localStorage.getItem('mbBaseUrl')) {
+	console.log('No auth header or base URL found, showing login dialog.');
+	if (localStorage.getItem('mbBaseUrl')) {
+		console.log('Prefilling serverUrl with', localStorage.getItem('mbBaseUrl'));
+		document.getElementById('serverUrl').value = localStorage.getItem('mbBaseUrl');
 	}
-});
+	showLoginDialog();
+} else {
+	console.log('Auth header and base URL found:', localStorage.getItem('mbAuthHeader'), localStorage.getItem('mbBaseUrl'));
+}
 
 function login() {
 	let mbBaseUrl = document.getElementById('serverUrl').value;
@@ -35,6 +27,11 @@ function login() {
 
 	const mbAuthHeader = 'Basic ' + btoa(`${username}:${password}`);
 
+	// Parse origin and path for subfolder support
+	const urlObj = new URL(mbBaseUrl);
+	const origin = urlObj.origin;
+	const basePath = urlObj.pathname.replace(/\/$/, '');
+
 	// Test the auth header and base URL with a simple API call to validate credentials
 	fetch(`${mbBaseUrl}/api/v1/login/set-cookie`, {
 		method: 'GET',
@@ -44,16 +41,21 @@ function login() {
 		 }
 	})
 		.then(response => {
-			console.log(response);
+			console.log('Login response:', response);
 			if (response.ok) {
 				localStorage.setItem('mbRememberMe', rememberMe);
 				localStorage.setItem('mbAuthHeader', mbAuthHeader); // Save auth header
-				localStorage.setItem('mbBaseUrl', mbBaseUrl);       // Save base URL
+				localStorage.setItem('mbBaseUrl', origin);      // Save only the origin
+				localStorage.setItem('mbBasePath', basePath);   // Save only the path
+				console.log('Login successful, hiding dialog and reloading.');
 				hideLoginDialog();
+				console.log('Dialog hidden, reloading page...');
 				location.reload(true);
 				//fetchLibraries(); // Fetch libraries after successful login
 			} else {
-				localStorage.setItem('mbBaseUrl', mbBaseUrl);       // Save base URL
+				console.log('Login failed, showing error.');
+				localStorage.setItem('mbBaseUrl', origin);      // Save only the origin
+				localStorage.setItem('mbBasePath', basePath);   // Save only the path
 				document.getElementById('loginError').classList.remove('hidden'); // Show error message
 			}
 		})
@@ -64,23 +66,9 @@ function login() {
 }
 
 function showLoginDialog() {
-	console.log('Showing login dialog');
-	const authContainer = document.getElementById('authContainer');
-	if (authContainer) {
-		authContainer.classList.remove('hidden');
-		console.log('Login dialog shown');
-	} else {
-		console.error('authContainer element not found');
-	}
+	document.getElementById('authContainer').classList.remove('hidden');
 }
 
 function hideLoginDialog() {
-	console.log('Hiding login dialog');
-	const authContainer = document.getElementById('authContainer');
-	if (authContainer) {
-		authContainer.classList.add('hidden');
-		console.log('Login dialog hidden');
-	} else {
-		console.error('authContainer element not found');
-	}
+	document.getElementById('authContainer').classList.add('hidden');
 }

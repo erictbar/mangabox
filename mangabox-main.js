@@ -190,10 +190,33 @@ colorValues.forEach((value, index) => {
 	colorSwatchBar.append(colorSwatch);
 });
 
+// Helper to build API URLs with base path support
+function getApiUrl(apiPath) {
+	let baseUrl = localStorage.getItem('mbBaseUrl') || '';
+	let basePath = localStorage.getItem('mbBasePath') || '';
+	// Remove trailing slash from baseUrl
+	baseUrl = baseUrl.replace(/\/+$/, '');
+	// Remove leading and trailing slashes from basePath
+	basePath = basePath.replace(/^\/+|\/+$/g, '');
+	// Remove leading slash from apiPath
+	apiPath = apiPath.replace(/^\/+/, '');
+	let url = baseUrl;
+	if (basePath) url += '/' + basePath;
+	url += '/' + apiPath;
+	console.log('[getApiUrl] baseUrl:', baseUrl, 'basePath:', basePath, 'apiPath:', apiPath, '=>', url);
+	return url;
+}
+
 //MB API Call Function 
 async function callAPI(API_url, method = 'GET', body = null, returnval = true) {
 	try {
-		const response = await fetch(`${mb.baseUrl}${API_url}`, {
+		const url = getApiUrl(API_url);
+		console.log('[callAPI] URL:', url, 'Method:', method, 'Headers:', {
+			'Authorization': mb.authHeader,
+			'Content-Type': 'application/json',
+			'skip_zrok_interstitial': '1'
+		});
+		const response = await fetch(url, {
 			method: method,
 			headers: {
 				'Authorization': mb.authHeader,
@@ -215,13 +238,19 @@ async function callAPI(API_url, method = 'GET', body = null, returnval = true) {
 }
 
 async function getUserSettings() {
-	const settings = await callAPI('/api/v1/client-settings/user/list', 'GET');
-	const mangaboxFlat = Object.fromEntries(
-		Object.entries(settings)
-			.filter(([key]) => key.startsWith("mangabox"))
-			.map(([key, obj]) => [key, obj.value])
-	);
-	return mangaboxFlat
+	try {
+		const settings = await callAPI('/api/v1/client-settings/user/list', 'GET');
+		if (!settings || typeof settings !== 'object') return {};
+		const mangaboxFlat = Object.fromEntries(
+			Object.entries(settings)
+				.filter(([key]) => key.startsWith("mangabox"))
+				.map(([key, obj]) => [key, obj.value])
+		);
+		return mangaboxFlat;
+	} catch (e) {
+		console.error('Error in getUserSettings, returning empty object:', e);
+		return {};
+	}
 }
 
 async function setUserSettings(key, value) {
@@ -267,28 +296,30 @@ function updatePWABar(color = null) {
 }
 
 function changeTheme() {
+	if (!mb.themeControl || !Array.isArray(mb.themeControl) || mb.themeControl.length === 0) {
+		console.error('Theme control is missing or invalid:', mb.themeControl);
+		return;
+	}
 	let toDark = false;
 
 	if (mb.themePrefs != 2) {
 		toDark = (mb.themePrefs == 1)
 	} else {
-		toDark = mb.prefersDarkMode.matches ? true : false
+		toDark = mb.prefersDarkMode && mb.prefersDarkMode.matches ? true : false
 	}
 
 	// Set css theme to dark or light
 	document.documentElement.setAttribute('data-theme', toDark ? 'dark' : 'light');
 
-	if (mb.themeControl) {
-		mb.themeControl.forEach(item => {
-			const themeLabel = document.getElementById('themeLabel');
-			if (themeLabel) themeLabel.classList.remove(item.icon);
-		});
-
+	mb.themeControl.forEach(item => {
 		const themeLabel = document.getElementById('themeLabel');
-		if (themeLabel) {
-			themeLabel.classList.add(mb.themeControl[mb.themePrefs].icon);
-			themeLabel.title = mb.themeControl[mb.themePrefs].label;
-		}
+		if (themeLabel) themeLabel.classList.remove(item.icon);
+	});
+
+	const themeLabel = document.getElementById('themeLabel');
+	if (themeLabel && mb.themeControl[mb.themePrefs]) {
+		themeLabel.classList.add(mb.themeControl[mb.themePrefs].icon);
+		themeLabel.title = mb.themeControl[mb.themePrefs].label;
 	}
 
 	// Change fa icons for light or dark theme
@@ -309,10 +340,16 @@ function changeTheme() {
 
 // Show/Hide section functions
 function sectionHide(item) {
-	if (item) item.classList.add('hidden');
+	if (item) {
+		item.classList.add('hidden');
+		if (item.id === 'authContainer') item.style.display = 'none';
+	}
 }
 function sectionShow(item) {
-	if (item) item.classList.remove('hidden');
+	if (item) {
+		item.classList.remove('hidden');
+		if (item.id === 'authContainer') item.style.display = '';
+	}
 }
 function sectionToggle(item) {
 	if (item) item.classList.toggle('hidden');
@@ -333,7 +370,7 @@ function navigateTo(hash) {
 }
 
 // Show dashboard content
-function showDashboard() {
+async function showDashboard() {
 	console.log('Showing dashboard');
 	
 	// Hide all sections first
@@ -354,7 +391,22 @@ function showDashboard() {
 		console.log('Main UI container shown');
 	}
 	
-	// You can add more dashboard-specific content here
+	// Fetch and display continue-reading books
+	const continues = await fetchContinueReading();
+	if (continues.length) {
+		sectionShow(document.getElementById('stripGridContainer'));
+		const stripGrid = document.getElementById('stripGrid');
+		stripGrid.innerHTML = '';
+		continues.forEach(book => {
+			const img = document.createElement('img');
+			img.src = getApiUrl(`/api/v1/series/${book.seriesId}/books/${book.id}/thumbnail?width=200`);
+			img.alt = book.metadata.title;
+			img.title = `${book.seriesTitle} - Vol.${book.metadata.number} (${Math.round((book.progress.position / book.metadata.numberOfPages)*100)}%)`;
+			img.className = 'strip-book';
+			img.addEventListener('click', () => openBook(book.seriesId, book.id, book.progress.position));
+			stripGrid.appendChild(img);
+		});
+	}
 }
 
 // Fetch libraries function
@@ -362,9 +414,13 @@ async function fetchLibraries() {
 	try {
 		console.log('Fetching libraries...');
 		const libraries = await callAPI('/api/v1/libraries');
+		if (!Array.isArray(libraries)) {
+			console.error('Libraries API did not return an array:', libraries);
+			displayLibraries([]);
+			return;
+		}
 		libraries.sort((a, b) => a.name.localeCompare(b.name));
 		console.log('Libraries loaded:', libraries);
-		
 		// Display libraries in the UI
 		displayLibraries(libraries);
 	} catch (error) {
@@ -380,48 +436,28 @@ function displayLibraries(libraries) {
 		console.error('librariesList element not found');
 		return;
 	}
-	
-	console.log('Libraries list element found, clearing content');
-	// Clear existing content
 	librariesList.innerHTML = '';
-	
 	if (!libraries || libraries.length === 0) {
-		console.log('No libraries to display');
 		librariesList.innerHTML = '<li style="color: white; padding: 10px;">No libraries found</li>';
 		return;
 	}
-	
-	// Add each library as a list item
 	libraries.forEach((library, index) => {
 		console.log(`Adding library ${index + 1}:`, library.name);
 		const listItem = document.createElement('li');
 		listItem.className = 'library-item';
-		listItem.style.color = 'white'; // Force white text for visibility
+		listItem.style.color = 'white';
+		const iconClass = mb.libraryIcons[library.id] || 'book';
 		listItem.innerHTML = `
 			<div class="button-wrapper">
-				<span class="fa-solid fa-book glyph-dark"></span>
+				<span class="fa-solid fa-${iconClass} glyph-dark"></span>
 				<span class="library-name">${library.name}</span>
 			</div>
 		`;
 		listItem.addEventListener('click', () => {
 			console.log('Library clicked:', library.name);
-			// Add library navigation logic here
 		});
 		librariesList.appendChild(listItem);
 	});
-	
-	console.log(`Successfully displayed ${libraries.length} libraries`);
-	
-	// Update the temp content to show library count
-	const tempContent = document.getElementById('tempVisibleContent');
-	if (tempContent) {
-		tempContent.innerHTML = `
-			<h3>MangaBox - Main UI Loaded</h3>
-			<p>✅ Authentication successful</p>
-			<p>✅ Main UI initialized</p>
-			<p>✅ Libraries loaded: ${libraries.length}</p>
-		`;
-	}
 }
 
 // Initialize the app when DOM is loaded
@@ -444,6 +480,12 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 function bootSequence() {
+	// Always refresh mb object from localStorage after reload
+	mb.authHeader = localStorage.getItem('mbAuthHeader');
+	mb.baseUrl = localStorage.getItem('mbBaseUrl');
+	mb.rememberMe = localStorage.getItem('mbRememberMe');
+	mb.basePath = localStorage.getItem('mbBasePath');
+
 	console.log('Boot sequence starting');
 	// Set up initial theme and layout
 	changeTheme();
@@ -466,35 +508,7 @@ function bootSequence() {
 		
 		fetchLibraries();
 		navigateTo('#dashboard');
-		
-		// Add temporary visible content for testing
-		const tempContent = document.createElement('div');
-		tempContent.id = 'tempVisibleContent';
-		tempContent.style.cssText = `
-			position: fixed;
-			top: 100px;
-			left: 20px;
-			background: #333;
-			color: white;
-			padding: 20px;
-			border-radius: 8px;
-			z-index: 1000;
-			font-family: Arial, sans-serif;
-		`;
-		tempContent.innerHTML = `
-			<h3>MangaBox - Main UI Loaded</h3>
-			<p>✅ Authentication successful</p>
-			<p>✅ Main UI initialized</p>
-			<p>Libraries loading...</p>
-		`;
-		document.body.appendChild(tempContent);
-		
-		// Remove after 5 seconds
-		setTimeout(() => {
-			if (tempContent.parentNode) {
-				tempContent.parentNode.removeChild(tempContent);
-			}
-		}, 5000);
+		// Removed debug overlay for production
 	} else {
 		// Show login form
 		console.log('User not authenticated, showing login form');
@@ -526,6 +540,23 @@ async function updateDiscordActivity(bookData = null, currentPage = null, totalP
 	} catch (error) {
 		console.error("Failed to update Discord activity:", error);
 	}
+}
+
+// Fetch continue-reading books from Komga
+async function fetchContinueReading() {
+    try {
+        const books = await callAPI('/api/v1/books/continue-reading');
+        return Array.isArray(books) ? books : [];
+    } catch (e) {
+        console.error('Error fetching continue-reading books:', e);
+        return [];
+    }
+}
+
+// Stub for opening book in reader
+function openBook(seriesId, bookId, page) {
+    console.log('Open book:', seriesId, bookId, 'page:', page);
+    // TODO: implement actual reader opening
 }
 
 // Theme control setup
