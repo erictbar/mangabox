@@ -3,13 +3,13 @@
 // Show the login dialog if no auth header or base URL is available
 if (!localStorage.getItem('mbAuthHeader') || !localStorage.getItem('mbBaseUrl')) {
 	if (localStorage.getItem('mbBaseUrl')) {
-		document.getElementById('mbBaseUrl').value = localStorage.getItem('mbBaseUrl');
+		document.getElementById('serverUrl').value = localStorage.getItem('mbBaseUrl');
 	}
 	showLoginDialog();
 }
 
 function login() {
-	let mbBaseUrl = document.getElementById('mbBaseUrl').value;
+	let mbBaseUrl = document.getElementById('serverUrl').value;
 	const username = document.getElementById('username').value;
 	const password = document.getElementById('password').value;
 	const rememberMe = document.getElementById('rememberMe').checked;
@@ -42,19 +42,19 @@ function login() {
 				//fetchLibraries(); // Fetch libraries after successful login
 			} else {
 				localStorage.setItem('mbBaseUrl', mbBaseUrl);       // Save base URL
-				document.getElementById('loginError').classList.remove('auth-hidden'); // Show error message
+				document.getElementById('loginError').classList.remove('hidden'); // Show error message
 			}
 		})
 		.catch(error => {
 			console.error('Login error:', error);
-			document.getElementById('loginError').classList.remove('auth-hidden');
+			document.getElementById('loginError').classList.remove('hidden');
 		});
 }
 
 function showLoginDialog() {
-	document.getElementById('loginScreen').classList.remove('auth-hidden');
+	document.getElementById('authContainer').classList.remove('hidden');
 }
 
 function hideLoginDialog() {
-	document.getElementById('loginScreen').classList.add('auth-hidden');
+	document.getElementById('authContainer').classList.add('hidden');
 }

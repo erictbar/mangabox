@@ -353,7 +353,7 @@
 		//Questa cosa qui spostarla quando uno chiude la finestra!
 		if (mb.rememberMe != 'true') {
 			localStorage.removeItem('mbAuthHeader');
-		};
+		}
 
 		//MB Theme Management 
 
@@ -793,7 +793,7 @@
 					name: item,
 					caption: item.toUpperCase(),
 					iconClass: 'fa-solid fa-square glyph-dark glyph-flag-button',
-					iconStyle: `background-image:url('flags/${item}.svg`,
+					iconStyle: `background-image:url("flags/${item}.svg")`,
 					filterFunction: (a) => a.mbSeriesLanguage == item
 				})
 			});
@@ -834,12 +834,12 @@
 				div.infilter = true;
 			});
 
-			const isFiltered = Object.values(mb.filterButtons).reduce((sum, item) => sum + (item.selected || 0), 0);
-			libraryMenuIcon.className = isFiltered == 0 ? 'fa-solid fa-sliders glyph-dark' : 'fa-solid fa-sliders mb-accent glyph-dark'
+			const isFiltered = mb.filterButtons.reduce((sum, item) => sum + (item.selected || 0), 0);
+			libraryMenuIcon.className = isFiltered == 0 ? 'fa-solid fa-sliders glyph-dark' : 'fa-solid fa-sliders mb-accent glyph-dark';
 
 			mb.filterButtons.forEach(button => {
-				button.icon.innerHTML = `<span style="${button.switches[button.selected].iconStyle}" class="${button.switches[button.selected].iconClass}${button.selected != 0 ? ' mb-accent' : ''}"></span>`;
-				button.caption.innerHTML = `${button.switches[button.selected].caption}`;
+				button.icon.innerHTML = '<span style="' + button.switches[button.selected].iconStyle + '" class="' + button.switches[button.selected].iconClass + (button.selected != 0 ? ' mb-accent' : '') + '"></span>';
+				button.caption.innerHTML = button.switches[button.selected].caption;
 
 				if (button.switches[button.selected].sortFunction) {
 					divs.sort((a, b) => {
@@ -860,40 +860,29 @@
 		}
 
 		// Build filter buttons items
-
 		mb.filterButtons.forEach(button => {
 			button.item = addItem('li', {
-				className: `filter-item`,
-				title: button.title,
+				className: 'filter-item',
+				title: button.title
 			});
 			button.icon = addItem('div', {
-				className: `thumbnail-wrapper`,
-				innerHTML: `<span style="${button.switches[0].iconStyle}" class="${button.switches[0].iconClass}"></span>`
+				className: 'thumbnail-wrapper',
+				innerHTML: '<span style="' + button.switches[0].iconStyle + '" class="' + button.switches[0].iconClass + '"></span>'
 			});
 			button.caption = addItem('div', {
-				className: `library-name`,
-				innerHTML: `${button.switches[0].caption}`
+				className: 'library-name',
+				innerHTML: button.switches[0].caption
 			});
 			button.item.append(
 				button.icon,
 				button.caption
 			);
-			extraButtons.append(button.item);
-			button.item.addEventListener('click', async () => {
-				button.selected = ((button.selected + 1) % button.switches.length);
-				await executeFade(1);
-				applyLibraryFilters();
-				await executeFade(0);
-				saveLibraryFilters();
-			})
 		});
 
 		extraButtons.append(addItem('li', {
 			title: 'Reset filters and sorting',
-			className: `filter-item`,
-			innerHTML: `<div class="thumbnail-wrapper">
-								<span class="fa-solid fa-arrows-rotate fa-flip-horizontal glyph-dark"></span>
-							</div>`,
+			className: 'filter-item',
+			innerHTML: '<div class="thumbnail-wrapper"><span class="fa-solid fa-arrows-rotate fa-flip-horizontal glyph-dark"></span></div>',
 			onclick: async () => {
 				await executeFade(1);
 				mb.filterButtons.forEach(button => {
@@ -935,7 +924,7 @@
 				const visibleRatio = item.homeStrip.clientWidth / item.homeStrip.scrollWidth;
 				const thumbWidth = (100 * visibleRatio);
 
-				item.scrollInput.style.setProperty('--thumb-width', `${thumbWidth}%`);
+				item.scrollInput.style.setProperty('--thumb-width', (thumbWidth + '%'));
 			});
 		};
 
@@ -1004,7 +993,7 @@
 		//MB API Call Function 
 		async function callAPI(API_url, method = 'GET', body = null, returnval = true) {
 			try {
-				const response = await fetch(`${mb.baseUrl}${API_url}`, {
+				const response = await fetch(mb.baseUrl + API_url, {
 					method: method,
 					headers: {
 						'Authorization': mb.authHeader,
@@ -1014,7 +1003,7 @@
 					body: body
 				});
 
-				if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
+				if (!response.ok) throw new Error('Network response was not ok: ' + response.statusText);
 
 				if (returnval) {
 					const output = await response.json();
@@ -1061,11 +1050,11 @@
 
 					return objectURL;
 				} else {
-					console.error(`Failed to load media from ${url}`, response.status);
+					console.error('Failed to load media from ' + url, response.status);
 					return 'fallback-image.jpg';
 				}
 			} catch (error) {
-				console.error(`Error fetching media: ${error.message}`);
+				console.error('Error fetching media: ' + error.message);
 				return 'fallback-image.jpg';
 			}
 		}
@@ -1853,11 +1842,14 @@
 
 				rd.historyPath = window.location.hash.split('&book_id=')[0] + (target == booksGrid ? '&book_id=' + book.id : '');
 				setIncognito(false);
+
 				if (target.binName) mb.dashboardBin = target.binName;
 				navigateTo(`#bookread
+					
 						?library_id=${book.libraryId}
 						&series_id=${book.seriesId}
 						&book_id=${book.id}
+
 						&dir=${(readingDirection == 'RIGHT_TO_LEFT' ? 'rtl' : 'ltr')}
 						&pag=${(book.readProgress ? book.readProgress.page : 1)}`);
 			});
@@ -2103,6 +2095,15 @@
 			changeTheme();
 			setIncognito(false);
 
+			// Initialize Discord RPC
+			try {
+				mb.discordRPC = new window.DiscordRPC();
+				console.log('Discord RPC integration initialized');
+			} catch (error) {
+				console.warn('Discord RPC not available:', error);
+				mb.discordRPC = null;
+			}
+
 			buildLanguageList();
 
 			sectionShow(stickyContainer);
@@ -2114,176 +2115,63 @@
 			//changeTheme();//TODO Non va, deve essere automatico. Perché quando crea un nuovo item sbaglia tema?
 		}
 
-		//MB Reader Functions and Data
+		// --- Discord RPC Integration ---
+		if (window.DiscordRPC) {
+			mb.discordRPC = new window.DiscordRPC();
+		} else {
+			mb.discordRPC = null;
+		}
 
-		// General reader data structure
-		let rd = {
-			thresholdRatio: 1.0,	//Orientation threshold
-
-			preloadCount: 15,			// Image preload count
-			preloadPicDelay: 300,	// Delay before adding new spreads to the preload stack
-			loadDelay: 100,			// Delay used when jumping to a spread before really updating
-			jumpTimeout: null,		// Timeout counter for jumping to spreads
-
-			preloadStack: {}, 		// Contains all the preload timers, one for each spread that's going to be loaded
-			picLoadStack: [], 		// Contains all load image objects, both direct load and preload
-
-			ltr: null,
-			currentPage: 0,
-			pages: [],					// this is the array of pages data in the form url, iscover etc
-			uiPages: [],				// array of page images with alt = page number
-			uiPagesContainer: [],
-
-			uiSpreads: [],				// array of divs with the correct paged uiPages inside
-			spreadsData: [],			// array with spreads data: 
-											// 	spreadKind: what kind of page is this (cover, double spread, two pages etc)
-											// 	pageNums: array of the page indexes that are into the spread index
-											// 	imageRefs: array of the image index for each page (for double spreads where the same IMAGE is in two PAGES in one SPREAD)
-			uiSpreadsPageShadowL: [],
-			uiSpreadsPageShadowR: [],
-
-			currentPageIndex: 0,
-			currentSpreadIndex: 0,
-			oldSpreadIndex: 0,
-			isDraggingProgressBar: false,
-
-			thumbZoom: false,
-			thumbsWidth: 0,
-
-			uiPagesThumbs: [],
-			uiSpreadsThumbs: [],
-
-			libraryId: 0,
-			seriesId: 0,
-			bookId: 0,
-
-			historyPath: '',
-			bookPath: '',
-
-			incognito: false,
-
-			spreadFocus: 'focus-center',
-
-			// These two parameters shape the page width and ForeEdge width for a full book
-			//ForeEdgePicRate: 0.2,		// Full book ForeEdge size in ratio of the height, the image is stretched to fill
-			//ForeEdgePicCut: 0.7,			// Portion of the full book image that's acutally used on a full book
-			leftForeEdge: null,
-			rightForeEdge: null,
-			leftDrop: null,
-			rightDrop: null,
-
-			turnTimeout: null,
-			pageTurning: null,
-
-			speedTurn: 500,			// Speed of turning page animation
-			shadowOpacityForward: '0.4',
-			shadowOpacityBackward: '0.3',
-			shadowWidthForward: '10%',
-			shadowWidthBackward: '15%',
-
-			speedScroll: 500,			// Speed of spread page scrolling
-			speedScrollDelay: 300,	// Delay of spread page scrolling during page turn
-			speedScrollTurn: 500,	// Speed of spread page scrolling during page turn
-
-			focusFrames: {
-				'focus-right-page': 'translate(-75%, -50%)',
-				'focus-left-page': 'translate(-25%, -50%)',
-				'focus-center': 'translate(-50%, -50%)',
-				'none': 'translate(-50%, -50%)',
+		// Helper to update Discord activity
+		async function updateDiscordActivity(bookData, currentPage, totalPages) {
+			if (!mb.discordRPC || !mb.discordRPC.isEnabled) return;
+			if (!bookData) {
+				mb.discordRPC.clearActivity();
+				return;
 			}
+			const progress = totalPages ? Math.round((currentPage / totalPages) * 100) : 0;
+			mb.discordRPC.updateActivityDebounced({
+				details: `Reading ${bookData.seriesTitle}`,
+				state: `Vol.${bookData.metadata.number} - ${progress}% (${currentPage}/${totalPages})`,
+				startTimestamp: Date.now(),
+				largeImageKey: 'manga_icon', // Set in your Discord app
+				largeImageText: bookData.metadata.title,
+				smallImageKey: 'reading_icon',
+				smallImageText: 'Reading manga',
+				// Optionally add buttons, etc.
+			});
+		}
 
+		// Patch into reader open and page change
+		const origInitViewer = initViewer;
+		initViewer = async function() {
+			await origInitViewer.apply(this, arguments);
+			// After opening a book, update Discord
+			let bookData = await callAPI(`/api/v1/books/${rd.bookId}`);
+			updateDiscordActivity(bookData, rd.currentPage, rd.pages.length);
 		};
 
-		// Function that prepares the page for reading a book, once the url is setup, navigateTo triggers openBookReader function
-		function navigateToReadBook(book, readingDirection) {
-			setIncognito(false);
-			navigateTo(`#bookread
-						?library_id=${book.libraryId}
-						&series_id=${book.seriesId}
-						&book_id=${book.id}
-						&dir=${(readingDirection == 'RIGHT_TO_LEFT' ? 'rtl' : 'ltr')}
-						&pag=${(book.readProgress ? book.readProgress.page : 1)}`);
-		}
-
-		// Function that setups the reader for a specific book, this is not run directly
-		function openBookReader(libraryId, seriesId, bookId, dir, pag) {
-			//TODO aggiungere funzione per pulire l'array del preload e quello delle pic
-			Object.entries(dashboardElements).forEach(([name, item]) => {
-				item.homeStrip.innerHTML = '';
-			});
-			clearReader(); //TODO forse eccessivo?
-			clearAllTimeouts();
-			rd.picLoadStack = [];
-			rd.jumpTimeout = null;
-
-			rd.ltr = (dir == 'ltr');
-			rd.currentPage = pag;
-			rd.pages = [];					// this is the array of pages data in the form url, iscover etc
-
-			/* CLEARED IN THE CLEAR ROUTINE
-			rd.uiPages = [];				// array of page images with alt = page number
-			rd.uiPagesContainer = [];				// array of page images with alt = page number
-			rd.uiSpreads = [];				// array of divs with the correct paged uiPages inside
-			*/
-			rd.spreadsData = [];
-
-			rd.currentPageIndex = 0;
-			rd.currentSpreadIndex = 0;
-			rd.oldSpreadIndex = 0;
-			rd.isDraggingProgressBar = false;
-
-			/* CLEARED IN THE CLEAR ROUTINE
-			rd.uiSpreadsThumbs = [];
-			rd.uiPagesThumbs = [];
-			*/
-
-			rd.libraryId = libraryId;
-			rd.seriesId = seriesId;
-			rd.bookId = bookId;
-
-			rd.spreadFocus = 'focus-center';
-
-			readerViewer.innerHTML = '';
-
-			setThumbZoom(false);
-			sectionShow(readerContainer);
-
-			initViewer();
-
-		}
-
-		// Reader cleanup functions to remove all dangling spreads and pages
-		function clearReader() {
-			// Cleanup all DOM objects and array of objects 
-			["uiPages", "uiPagesContainer", "uiSpreads", "uiPagesThumbs", "uiSpreadsThumbs", "uiSpreadsPageShadowL", "uiSpreadsPageShadowR"].forEach(key => {
-				rd[key].forEach(item => item.remove());
-				rd[key].length = 0;
-			});
-
-			// Cleanup ForeEdge and drop shadows
-			["leftForeEdge", "rightForeEdge", "leftDrop", "rightDrop"].forEach(key => {
-				if (rd[key]) {
-					rd[key].remove();
-					rd[key] = null;
-				}
-			});
-		}
-
-		function spreadSetFocus(focusString, smoothMove = false, delayMove = false) {
-			let [duration, delay] = !smoothMove ? [0, 0] : (delayMove ? [rd.speedScrollTurn, rd.speedScrollDelay] : [rd.speedScroll, 0]);
-
-			readerViewer.animate(
-				[{ transform: rd.focusFrames[focusString] }],
-				{ duration: duration, easing: 'ease', fill: 'forwards', delay: delay }
-			);
-			rd.spreadFocus = focusString;
-		}
+		const origJumpToSpread = jumpToSpread;
+		jumpToSpread = function(newSpreadTarget, spreadClass = null, turnDirection = null, force = false) {
+			origJumpToSpread.apply(this, arguments);
+			// After page change, update Discord
+			if (typeof rd !== 'undefined' && rd.bookId) {
+				callAPI(`/api/v1/books/${rd.bookId}`).then(bookData => {
+					updateDiscordActivity(bookData, rd.currentPage, rd.pages.length);
+				});
+			}
+		};
 
 		// Setup close button
 		function handleCloseReader() {
 			hideMenu();
 			setIncognito(false);
 			//XXX WAS incognitoMark.classList.remove('incognito'); but why didn't I just sue setIncognito(false)?
+
+			// Clear Discord RPC activity when closing reader
+			if (mb.discordRPC) {
+				mb.discordRPC.clearActivity();
+			}
 
 			clearTimeout(rd.jumpTimeout);
 			setTimeout(() => {
@@ -2422,7 +2310,43 @@
 			rightLimit.innerText = rd.ltr ? rd.pages.length : 1;
 			bookName.innerText = `${bookData.seriesTitle} Vol.${bookData.metadata.number} (${bookData.metadata.title})`
 
+			// Initialize Discord RPC for reading session
+			if (mb.discordRPC && !rd.incognito) {
+				updateDiscordActivity(bookData, rd.currentPage, rd.pages.length);
+			}
+
 			jumpToSpread(rd.currentSpreadIndex, null, null, true);
+		}
+
+		// Discord RPC Integration Functions
+		async function updateDiscordActivity(bookData, currentPage = null, totalPages = null) {
+			if (!mb.discordRPC || !mb.discordRPC.isEnabled || rd.incognito) return;
+			
+			try {
+				if (!bookData) {
+					// Clear activity when not reading
+					await mb.discordRPC.clearActivity();
+					return;
+				}
+				
+				const progress = currentPage && totalPages ? Math.round((currentPage / totalPages) * 100) : 0;
+				const progressText = currentPage && totalPages ? ` - ${progress}% (${currentPage}/${totalPages})` : '';
+				
+				const activity = {
+					details: `Reading ${bookData.seriesTitle}`,
+					state: `Vol.${bookData.metadata.number}${progressText}`,
+					startTimestamp: Date.now(),
+					largeImageKey: "manga_large", // You'll need to upload this to your Discord app
+					largeImageText: bookData.metadata.title,
+					smallImageKey: "reading_small", // You'll need to upload this to your Discord app
+					smallImageText: "Reading manga"
+				};
+				
+				await mb.discordRPC.setActivity(activity);
+				
+			} catch (error) {
+				console.error("Failed to update Discord activity:", error);
+			}
 		}
 
 		function buildSizePic(item, ratio, picratio) {
@@ -2854,7 +2778,7 @@
 
 				rd.uiSpreads.push(spreadItem);
 				readerViewer.append(spreadItem);
-				spreadHide(spreadItem);
+				spreadHide(rd.uiSpreads[rd.uiSpreads.length - 1]);
 
 				const localSpread = index;
 
@@ -2956,7 +2880,7 @@
 								}
 							});
 						} catch (error) {
-							console.error(`Failed to load image for element ${element}:`, error);
+							console.error('Failed to load image for element ' + element + ':', error);
 							// Handle error (optional: remove from stack or show fallback)
 						}
 					}
@@ -3194,7 +3118,7 @@
 			const startCover = rd.spreadsData[oldindex].imageRefs.length == 1
 			const stopCover = rd.spreadsData[index].imageRefs.length == 1
 
-			//turnDirection can be 'turn-right' or 'turn-left'
+			//turnDirectioncan be 'turn-right' or 'turn-left'
 			rd.leftForeEdge.style.transition = 'clip-path 0.3s';
 			rd.rightForeEdge.style.transition = 'clip-path 0.3s';
 			rd.leftDrop.style.transition = 'margin 0.3s';
@@ -3346,7 +3270,7 @@
 					rightPage.animate(clipR2L, animData).finished.then(() => {
 						if (oldindex != index) spreadHide(rd.uiSpreads[oldindex]);
 					});
-					coverPage.animate(appearL2R_sildeinR2L, animData);
+					coverPage.animate(appearL2R, animData);
 					rd.rightDrop.animate(
 						[{ left: '50%' }],
 						{ duration: turnSpeed, easing: easeFull, fill: "forwards" }
@@ -3415,6 +3339,22 @@
 
 			centerThumb();
 			updateProgressBar();
+			
+			// Update Discord RPC with debounce (only if not forced/initial load)
+			if (!force && mb.discordRPC && !rd.incognito) {
+				if (mb.discordRPC.activityTimeout) {
+					clearTimeout(mb.discordRPC.activityTimeout);
+				}
+				mb.discordRPC.activityTimeout = setTimeout(async () => {
+					try {
+						const bookData = await callAPI(`/api/v1/books/${rd.bookId}`);
+						updateDiscordActivity(bookData, rd.currentPage, rd.pages.length);
+					} catch (error) {
+						console.warn('Failed to update Discord activity:', error);
+					}
+				}, 1000); // Debounce to avoid spam
+			}
+			
 			if (!force) history.replaceState(null, '', jumpString());
 		}
 
@@ -3443,17 +3383,11 @@
 			const progressBarWidth = readerProgressBar.offsetWidth;
 			const clickX = event.clientX - readerProgressBar.getBoundingClientRect().left;
 			const newProgressPercent = Math.min(1, Math.max(0, rd.ltr ? clickX / progressBarWidth : (progressBarWidth - clickX) / progressBarWidth));
-
-			jumpToSpread(Math.floor(newProgressPercent * (rd.uiSpreads.length - 1)));
-		}
-
-		// Dragging the progress bar
-		readerProgressBar.addEventListener('mousedown', (event) => {
 			rd.isDraggingProgressBar = true;
 			event.preventDefault();
 
 			seek(event);
-		});
+		};
 		readerProgressBar.addEventListener('touchstart', (event) => {
 			rd.isDraggingProgressBar = true;
 			seek(event.touches[0]); // Use the first touch point
