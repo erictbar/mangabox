@@ -36,6 +36,10 @@ if (-not (Test-Path "dist\mangabox")) {
     Copy-Item -Path "webfonts" -Destination "dist\mangabox\webfonts" -Recurse -Force -ErrorAction SilentlyContinue
     Copy-Item -Path "*.png" -Destination "dist\mangabox\" -Force -ErrorAction SilentlyContinue
     Copy-Item -Path "*.svg" -Destination "dist\mangabox\" -Force -ErrorAction SilentlyContinue
+    Copy-Item -Path "library-thumbnails" -Destination "dist\mangabox\library-thumbnails" -Recurse -Force -ErrorAction SilentlyContinue
+    Copy-Item -Path "library-letters" -Destination "dist\mangabox\library-letters" -Recurse -Force -ErrorAction SilentlyContinue
+    Copy-Item -Path "flags" -Destination "dist\mangabox\flags" -Recurse -Force -ErrorAction SilentlyContinue
+    Copy-Item -Path "logo" -Destination "dist\mangabox\logo" -Recurse -Force -ErrorAction SilentlyContinue
     
     Write-Host "Web assets copied to dist/mangabox" -ForegroundColor Green
 }
