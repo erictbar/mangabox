@@ -23,26 +23,27 @@ if (-not (Test-Path "node_modules")) {
 }
 
 # Prepare dist/mangabox directory with web assets
+Write-Host "Preparing dist/mangabox directory with web assets..." -ForegroundColor Yellow
 if (-not (Test-Path "dist\mangabox")) {
-    Write-Host "Creating dist/mangabox directory with web assets..." -ForegroundColor Yellow
     New-Item -ItemType Directory -Path "dist\mangabox" -Force | Out-Null
-    
-    # Copy web assets
-    Copy-Item -Path "index.html" -Destination "dist\mangabox\" -Force
-    Copy-Item -Path "*.css" -Destination "dist\mangabox\" -Force
-    Copy-Item -Path "*.js" -Destination "dist\mangabox\" -Force
-    Copy-Item -Path "manifest.json" -Destination "dist\mangabox\" -Force
-    Copy-Item -Path "fontawesome" -Destination "dist\mangabox\fontawesome" -Recurse -Force -ErrorAction SilentlyContinue
-    Copy-Item -Path "webfonts" -Destination "dist\mangabox\webfonts" -Recurse -Force -ErrorAction SilentlyContinue
-    Copy-Item -Path "*.png" -Destination "dist\mangabox\" -Force -ErrorAction SilentlyContinue
-    Copy-Item -Path "*.svg" -Destination "dist\mangabox\" -Force -ErrorAction SilentlyContinue
-    Copy-Item -Path "library-thumbnails" -Destination "dist\mangabox\library-thumbnails" -Recurse -Force -ErrorAction SilentlyContinue
-    Copy-Item -Path "library-letters" -Destination "dist\mangabox\library-letters" -Recurse -Force -ErrorAction SilentlyContinue
-    Copy-Item -Path "flags" -Destination "dist\mangabox\flags" -Recurse -Force -ErrorAction SilentlyContinue
-    Copy-Item -Path "logo" -Destination "dist\mangabox\logo" -Recurse -Force -ErrorAction SilentlyContinue
-    
-    Write-Host "Web assets copied to dist/mangabox" -ForegroundColor Green
 }
+
+# Copy web assets (always refresh to ensure latest versions)
+Copy-Item -Path "index.html" -Destination "dist\mangabox\" -Force
+Copy-Item -Path "*.css" -Destination "dist\mangabox\" -Force
+Copy-Item -Path "*.js" -Destination "dist\mangabox\" -Force
+Copy-Item -Path "manifest.json" -Destination "dist\mangabox\" -Force
+Copy-Item -Path "fontawesome" -Destination "dist\mangabox\fontawesome" -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item -Path "webfonts" -Destination "dist\mangabox\webfonts" -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item -Path "*.png" -Destination "dist\mangabox\" -Force -ErrorAction SilentlyContinue
+Copy-Item -Path "*.svg" -Destination "dist\mangabox\" -Force -ErrorAction SilentlyContinue
+Copy-Item -Path "library-thumbnails" -Destination "dist\mangabox\library-thumbnails" -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item -Path "library-letters" -Destination "dist\mangabox\library-letters" -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item -Path "flags" -Destination "dist\mangabox\flags" -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item -Path "logo" -Destination "dist\mangabox\logo" -Recurse -Force -ErrorAction SilentlyContinue
+
+Write-Host "Web assets copied to dist/mangabox" -ForegroundColor Green
+
 
 # Backup original config
 $originalConfig = "capacitor.config.json"
