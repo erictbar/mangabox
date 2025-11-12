@@ -353,6 +353,7 @@
 
 		const isStatusBar = isCapacitor && !!Capacitor.Plugins.StatusBar;
 		const isEdgeToEdge = isCapacitor && !!Capacitor.Plugins.EdgeToEdge;
+		const isNavBar = isCapacitor && !!Capacitor.Plugins.NavigationBar;
 
 		let capacitorPlatform = null;
 
@@ -433,22 +434,23 @@
 			}
 		}
 
-		async function getInsets(){
-			if (isEdgeToEdge){
+		async function setAndroidInsets() {
+			if (isEdgeToEdge) {
+				let ratio = window.devicePixelRatio || 1;
+				await Capacitor.Plugins.EdgeToEdge.enable()
 				let result = await Capacitor.Plugins.EdgeToEdge.getInsets();
-				debugPrint('Insets:');
-				debugPrint(result);
+				debugPrint(JSON.stringify(result, null, 2));
+				document.documentElement.style.setProperty('--mb-android-inset-top', (result.top/ratio) + 'px');
+				document.documentElement.style.setProperty('--mb-android-inset-bottom', (result.bottom/ratio) + 'px');
+				document.documentElement.style.setProperty('--mb-android-inset-left', (result.left/ratio) + 'px');
+				document.documentElement.style.setProperty('--mb-android-inset-right', (result.right/ratio) + 'px');
+				Capacitor.Plugins.EdgeToEdge.disable()
 			}
 		}
 
-(async () => {
-	if (isEdgeToEdge) {
-		debugPrint('isEdgeToEdge: true');
-		await getInsets();
-		Capacitor.Plugins.EdgeToEdge.disable();
-		await getInsets();
-	}
-})();
+		(async () => {
+				await setAndroidInsets();
+		})();
 
 
 		//MB Pinch To Zoom
@@ -1874,7 +1876,7 @@
 
 		fixZoomOnPWA()
 
-		window.addEventListener('orientationchange', () => {
+		window.addEventListener('orientationchange', async () => {
 			/*
 			if (isCapacitor && (capacitorPlatform == 'android')) {
 				setTimeout(() => {
@@ -1887,6 +1889,7 @@
 			}
 			*/
 			fixZoomOnPWA();
+			await setAndroidInsets();
 		});
 
 		document.addEventListener('visibilitychange', fixZoomOnPWA);
@@ -4189,6 +4192,9 @@
 			if (isStatusBar) {
 				Capacitor.Plugins.StatusBar.hide();
 			}
+			if (isNavBar) {
+				Capacitor.Plugins.NavigationBar.hide();
+			}
 			initViewer();
 
 		}
@@ -4276,7 +4282,9 @@
 			if (isStatusBar && !isSharpCornerIphone) {
 				Capacitor.Plugins.StatusBar.show();
 			}
-
+			if (isNavBar) {
+				Capacitor.Plugins.NavigationBar.show();
+			}
 		}
 
 		readerClose.addEventListener('click', () => {
