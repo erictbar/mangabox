@@ -71,18 +71,100 @@ try {
     .\gradlew.bat assembleRelease
     Pop-Location
 
-    # Find the generated APK
-    $apkPath = Get-ChildItem -Path "android\app\build\outputs\apk\release" -Filter "*.apk" -Recurse | Select-Object -First 1
+    # Find the generated unsigned APK
+    $unsignedApkPath = Get-ChildItem -Path "android\app\build\outputs\apk\release" -Filter "*unsigned.apk" -Recurse | Select-Object -First 1
 
-    if (-not $apkPath) {
-        Write-Host "Error: APK not found after build" -ForegroundColor Red
+    if (-not $unsignedApkPath) {
+        Write-Host "Error: Unsigned APK not found after build" -ForegroundColor Red
         exit 1
     }
 
-    # Copy APK to root directory with descriptive name
+    # Sign the APK
+    Write-Host "Signing APK..." -ForegroundColor Yellow
     $variant = $NewAppId.Split('.')[-1]
     $outputName = "MangaBox-$variant-release.apk"
-    Copy-Item $apkPath.FullName $outputName -Force
+    
+    # Check for Android SDK build-tools
+    $buildToolsPath = Get-Content "android\local.properties" | Where-Object { $_ -match "sdk.dir" } | ForEach-Object { 
+        $path = $_.Split('=')[1].Trim()
+        # Remove escape characters and convert to proper Windows path
+        $path = $path -replace '\\\\', '\'
+        $path = $path -replace '\\:', ':'
+        return $path
+    }
+    
+    Write-Host "Using Android SDK at: $buildToolsPath" -ForegroundColor Yellow
+    $buildToolsDir = Get-ChildItem -Path "$buildToolsPath\build-tools" | Where-Object { $_.PSIsContainer } | Sort-Object Name -Descending | Select-Object -First 1
+    
+    if (-not $buildToolsDir) {
+        Write-Host "Error: Build-tools not found in Android SDK" -ForegroundColor Red
+        exit 1
+    }
+    
+    $zipalign = Join-Path $buildToolsDir.FullName "zipalign.exe"
+    $apksigner = Join-Path $buildToolsDir.FullName "apksigner.bat"
+    
+    # Create debug keystore if it doesn't exist
+    $debugKeystore = "$env:USERPROFILE\.android\debug.keystore"
+    if (-not (Test-Path $debugKeystore)) {
+        Write-Host "Creating debug keystore..." -ForegroundColor Yellow
+        $androidDir = "$env:USERPROFILE\.android"
+        if (-not (Test-Path $androidDir)) {
+            New-Item -ItemType Directory -Path $androidDir -Force | Out-Null
+        }
+        
+        # Find keytool in JDK
+        $javaHome = $env:JAVA_HOME
+        if (-not $javaHome) {
+            # Try to find Java installation
+            $javaExe = Get-Command java -ErrorAction SilentlyContinue
+            if ($javaExe) {
+                $javaHome = Split-Path (Split-Path $javaExe.Source -Parent) -Parent
+            }
+        }
+        
+        if (-not $javaHome -or -not (Test-Path "$javaHome\bin\keytool.exe")) {
+            Write-Host "Warning: keytool not found. Attempting to use apksigner without custom keystore..." -ForegroundColor Yellow
+            $debugKeystore = $null
+        } else {
+            $keytool = "$javaHome\bin\keytool.exe"
+            $keytoolArgs = @(
+                "-genkey",
+                "-v",
+                "-keystore", $debugKeystore,
+                "-storepass", "android",
+                "-alias", "androiddebugkey",
+                "-keypass", "android",
+                "-keyalg", "RSA",
+                "-keysize", "2048",
+                "-validity", "10000",
+                "-dname", "CN=Android Debug,O=Android,C=US"
+            )
+            
+            & $keytool @keytoolArgs 2>&1 | Out-Null
+            Write-Host "Debug keystore created" -ForegroundColor Green
+        }
+    }
+    
+    # Align and sign the APK
+    $alignedApk = "android\app\build\outputs\apk\release\app-release-aligned.apk"
+    
+    Write-Host "Aligning APK..." -ForegroundColor Yellow
+    & $zipalign -v -p 4 $unsignedApkPath.FullName $alignedApk
+    
+    Write-Host "Signing APK..." -ForegroundColor Yellow
+    if ($debugKeystore -and (Test-Path $debugKeystore)) {
+        & $apksigner sign --ks $debugKeystore --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out $outputName $alignedApk
+    } else {
+        # Sign with apksigner's built-in debug signing
+        Write-Host "Using apksigner debug signing..." -ForegroundColor Yellow
+        & $apksigner sign --out $outputName $alignedApk
+    }
+    
+    if (-not (Test-Path $outputName)) {
+        Write-Host "Error: Signed APK not found" -ForegroundColor Red
+        exit 1
+    }
 
     Write-Host ""
     Write-Host "✓ Build successful!" -ForegroundColor Green
