@@ -340,7 +340,7 @@
 		const fullDebugMode = false;
 
 		// Enable for live debug on the main UI
-		const enableDebugPrint = false;
+		const enableDebugPrint = true;
 		debuggerObj.style.display = enableDebugPrint ? 'block' : 'none';
 
 		const debugPrint = enableDebugPrint
@@ -352,6 +352,8 @@
 		const isCapacitor = !!window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
 
 		const isStatusBar = isCapacitor && !!Capacitor.Plugins.StatusBar;
+		const isEdgeToEdge = isCapacitor && !!Capacitor.Plugins.EdgeToEdge;
+
 		let capacitorPlatform = null;
 
 		let enableFullscreen = true;
@@ -430,6 +432,24 @@
 				Capacitor.Plugins.StatusBar.show();
 			}
 		}
+
+		async function getInsets(){
+			if (isEdgeToEdge){
+				let result = await Capacitor.Plugins.EdgeToEdge.getInsets();
+				debugPrint('Insets:');
+				debugPrint(result);
+			}
+		}
+
+(async () => {
+	if (isEdgeToEdge) {
+		debugPrint('isEdgeToEdge: true');
+		await getInsets();
+		Capacitor.Plugins.EdgeToEdge.disable();
+		await getInsets();
+	}
+})();
+
 
 		//MB Pinch To Zoom
 
