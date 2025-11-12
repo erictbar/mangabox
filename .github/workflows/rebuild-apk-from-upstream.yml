@@ -1,0 +1,109 @@
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 * * * *' # run hourly (adjust as needed)
+
+jobs:
+  rebuild-apk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      actions: read
+    env:
+      UPSTREAM_OWNER: zpaolo11x
+      UPSTREAM_REPO: mangabox
+      ASSET_NAME_GLOB: "*-Android*.apk" # tweak if needed to match asset filename
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java (needed by apktool/zip tools)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies (apktool, zipalign, apk-signer helper)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip aapt openjdk-17-jdk zipalign
+          # apktool
+          wget -q -O apktool.jar https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool.jar
+          wget -q -O apktool https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool
+          chmod +x apktool
+          # Put apktool and apktool.jar into PATH
+          sudo mv apktool /usr/local/bin/
+          sudo mv apktool.jar /usr/local/bin/
+          # Install uber-apk-signer (alternative to apksigner if you don't want Android SDK)
+          wget -qO uber-apk-signer.zip https://github.com/patrickfav/uber-apk-signer/releases/latest/download/uber-apk-signer-amesh.zip || true
+          if [ -f uber-apk-signer.zip ]; then unzip -q uber-apk-signer.zip -d uber-apk-signer; fi
+
+      - name: Fetch upstream latest release tag
+        id: upstream
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = process.env.UPSTREAM_OWNER;
+            const repo = process.env.UPSTREAM_REPO;
+            const release = await github.rest.repos.getLatestRelease({ owner, repo });
+            return { tag: release.data.tag_name, id: release.data.id };
+
+      - name: Check if we've already processed this release
+        id: check
+        run: |
+          echo "latest_tag=${{ steps.upstream.outputs.result.tag }}" > latest_tag.txt
+          if [ -f .last_processed_release ]; then
+            prev=$(cat .last_processed_release)
+          else
+            prev=""
+          fi
+          echo "::set-output name=prev::$prev"
+        shell: bash
+
+      - name: Download upstream APK asset
+        if: steps.check.outputs.prev != steps.upstream.outputs.result.tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.upstream.outputs.result.tag }}"
+          echo "Upstream tag: $TAG"
+          API_URL="https://api.github.com/repos/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/releases/tags/${TAG}"
+          release_json=$(curl -s -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GITHUB_TOKEN}" "$API_URL")
+          asset_url=$(echo "$release_json" | jq -r '.assets[] | select(.name | test("'"${ASSET_NAME_GLOB//\*/.*}"'")) | .url' | head -n1)
+          if [ -z "$asset_url" ] || [ "$asset_url" = "null" ]; then
+            echo "No matching APK asset found in upstream release. Exiting."
+            exit 1
+          fi
+          echo "Found asset url (API): $asset_url"
+          curl -L --fail -H "Accept: application/octet-stream" -H "Authorization: Bearer ${GITHUB_TOKEN}" "$asset_url" -o upstream.apk
+          ls -lah upstream.apk
+
+      - name: Rebuild APK (decode, modify package, rebuild, sign)
+        if: steps.check.outputs.prev != steps.upstream.outputs.result.tag
+        env:
+          NEW_APPLICATION_ID: com.yourname.mangaboxclone
+          NEW_APP_NAME: "MangaBox Clone"
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ./tools/rebuild_apk.sh upstream.apk "$NEW_APPLICATION_ID" "$NEW_APP_NAME"
+          # remember the processed tag
+          echo "${{ steps.upstream.outputs.result.tag }}" > .last_processed_release
+          git add .last_processed_release
+          git commit -m "Update last processed upstream release to ${{ steps.upstream.outputs.result.tag }}" || true
+          git push || true
+
+      - name: Upload rebuilt APK artifact
+        if: steps.check.outputs.prev != steps.upstream.outputs.result.tag
+        uses: actions/upload-artifact@v4
+        with:
+          name: mangabox-clone-apk
+          path: rebuilt-signed.apk
+
+      - name: Done
+        run: echo "Workflow finished."
