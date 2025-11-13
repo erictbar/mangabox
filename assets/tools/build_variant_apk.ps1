@@ -6,9 +6,23 @@ param(
     [string]$NewAppName = "e MangaBox"
 )
 
-Write-Host "Building Android APK variant" -ForegroundColor Green
-Write-Host "Package ID: $NewAppId"
-Write-Host "App Name: $NewAppName"
+# Define all variants to build
+$variants = @(
+    @{
+        AppId = "com.EricBarbosa.MangaBox.echamax"
+        AppName = "e MangaBox"
+        OutputSuffix = "echamax"
+    },
+    @{
+        AppId = "com.EricBarbosa.MangaBox.fork"
+        AppName = "MangaBox"
+        OutputSuffix = "eric"
+    }
+)
+
+Write-Host "Building Android APK variants" -ForegroundColor Green
+Write-Host "Will build $($variants.Count) variant(s)" -ForegroundColor Cyan
+Write-Host ""
 
 # Check if we're in the project root
 if (-not (Test-Path "package.json")) {
@@ -21,6 +35,16 @@ if (-not (Test-Path "node_modules")) {
     Write-Host "Installing dependencies..." -ForegroundColor Yellow
     npm install
 }
+
+# Install additional Capacitor plugins for Android if not already installed
+Write-Host "Installing Capacitor plugins..." -ForegroundColor Yellow
+npm install @capacitor/status-bar@7 --save 2>&1 | Out-Null
+npm install @capacitor/camera@7 --save 2>&1 | Out-Null
+npm install @capacitor/filesystem@7 --save 2>&1 | Out-Null
+npm install @capawesome/capacitor-file-picker@7 --save 2>&1 | Out-Null
+npm install @capawesome/capacitor-android-edge-to-edge-support --save 2>&1 | Out-Null
+npm install @ethion/capacitor-navigation-bar --save 2>&1 | Out-Null
+Write-Host "Capacitor plugins installed" -ForegroundColor Green
 
 # Prepare dist/mangabox directory with web assets
 Write-Host "Preparing dist/mangabox directory with web assets..." -ForegroundColor Yellow
@@ -53,7 +77,20 @@ Write-Host "Backing up original capacitor.config.json..." -ForegroundColor Yello
 Copy-Item $originalConfig $backupConfig -Force
 
 try {
-    # Modify capacitor.config.json
+    # Build each variant
+    foreach ($variant in $variants) {
+        $NewAppId = $variant.AppId
+        $NewAppName = $variant.AppName
+        $outputSuffix = $variant.OutputSuffix
+        
+        Write-Host ""
+        Write-Host "========================================" -ForegroundColor Cyan
+        Write-Host "Building variant: $NewAppName" -ForegroundColor Cyan
+        Write-Host "Package ID: $NewAppId" -ForegroundColor Cyan
+        Write-Host "========================================" -ForegroundColor Cyan
+        Write-Host ""
+        
+        # Modify capacitor.config.json
     Write-Host "Modifying capacitor.config.json..." -ForegroundColor Yellow
     $config = Get-Content $originalConfig -Raw | ConvertFrom-Json
     $config.appId = $NewAppId
@@ -167,15 +204,31 @@ try {
     }
     
     if (-not (Test-Path $outputName)) {
-        Write-Host "Error: Signed APK not found" -ForegroundColor Red
-        exit 1
+        Write-Host "Error: Signed APK not found for $NewAppName" -ForegroundColor Red
+        continue
     }
 
     Write-Host ""
-    Write-Host "✓ Build successful!" -ForegroundColor Green
+    Write-Host "✓ Variant build successful!" -ForegroundColor Green
     Write-Host "APK created: $outputName" -ForegroundColor Cyan
-    Write-Host "Package ID: $NewAppId" -ForegroundColor Cyan
-    Write-Host "App Name: $NewAppName" -ForegroundColor Cyan
+    Write-Host ""
+    }
+
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor Green
+    Write-Host "✓ All variants built successfully!" -ForegroundColor Green
+    Write-Host "========================================" -ForegroundColor Green
+    Write-Host ""
+    
+    # List all created APKs
+    Write-Host "Created APKs:" -ForegroundColor Cyan
+    foreach ($variant in $variants) {
+        $apkName = "MangaBox-$($variant.OutputSuffix)-release.apk"
+        if (Test-Path $apkName) {
+            $size = (Get-Item $apkName).Length / 1MB
+            Write-Host "  - $apkName ($([math]::Round($size, 2)) MB)" -ForegroundColor White
+        }
+    }
 
 } finally {
     # Restore original config
