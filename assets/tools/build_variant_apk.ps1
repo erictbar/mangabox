@@ -16,7 +16,7 @@ $variants = @(
     @{
         AppId = "com.EricBarbosa.MangaBox.fork"
         AppName = "f MangaBox"
-        OutputSuffix = "eric"
+        OutputSuffix = "fork"
     }
 )
 
@@ -72,9 +72,21 @@ Write-Host "Web assets copied to dist/mangabox" -ForegroundColor Green
 # Backup original config
 $originalConfig = "capacitor.config.json"
 $backupConfig = "capacitor.config.json.backup"
+$buildGradlePath = "android\app\build.gradle"
+$buildGradleBackup = "build.gradle.backup"
+$stringsXmlPath = "android\app\src\main\res\values\strings.xml"
+$stringsXmlBackup = "strings.xml.backup"
 
-Write-Host "Backing up original capacitor.config.json..." -ForegroundColor Yellow
+Write-Host "Backing up original configuration files..." -ForegroundColor Yellow
 Copy-Item $originalConfig $backupConfig -Force
+
+# Backup Android files to root directory (not inside android folder)
+if (Test-Path $buildGradlePath) {
+    Copy-Item $buildGradlePath $buildGradleBackup -Force
+}
+if (Test-Path $stringsXmlPath) {
+    Copy-Item $stringsXmlPath $stringsXmlBackup -Force
+}
 
 try {
     # Build each variant
@@ -84,13 +96,24 @@ try {
         $outputSuffix = $variant.OutputSuffix
         
         Write-Host ""
-        Write-Host "========================================" -ForegroundColor Cyan
-        Write-Host "Building variant: $NewAppName" -ForegroundColor Cyan
-        Write-Host "Package ID: $NewAppId" -ForegroundColor Cyan
-        Write-Host "========================================" -ForegroundColor Cyan
         Write-Host ""
-        
-        # Modify capacitor.config.json
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "Building variant: $NewAppName" -ForegroundColor Cyan
+    Write-Host "Package ID: $NewAppId" -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Restore original Android config files before each variant
+    if (Test-Path $buildGradleBackup) {
+        Copy-Item $buildGradleBackup $buildGradlePath -Force
+        Write-Host "Restored original build.gradle" -ForegroundColor Yellow
+    }
+    if (Test-Path $stringsXmlBackup) {
+        Copy-Item $stringsXmlBackup $stringsXmlPath -Force
+        Write-Host "Restored original strings.xml" -ForegroundColor Yellow
+    }
+    
+    # Modify capacitor.config.json
     Write-Host "Modifying capacitor.config.json..." -ForegroundColor Yellow
     $config = Get-Content $originalConfig -Raw | ConvertFrom-Json
     $config.appId = $NewAppId
@@ -132,9 +155,40 @@ try {
     Set-Content $stringsXmlPath $stringsXmlContent
     Write-Host "Updated strings.xml with app name: $NewAppName" -ForegroundColor Green
 
+    # Update MainActivity.java package name and location
+    Write-Host "Updating MainActivity.java package..." -ForegroundColor Yellow
+    
+    # Find existing MainActivity.java
+    $mainActivityPath = Get-ChildItem -Path "android\app\src\main\java" -Filter "MainActivity.java" -Recurse | Select-Object -First 1
+    
+    if ($mainActivityPath) {
+        # Read and update package declaration
+        $mainActivityContent = Get-Content $mainActivityPath.FullName -Raw
+        $mainActivityContent = $mainActivityContent -replace 'package\s+[^;]+;', "package $NewAppId;"
+        
+        # Create new package directory structure
+        $packagePath = $NewAppId -replace '\.', '\'
+        $newMainActivityDir = "android\app\src\main\java\$packagePath"
+        New-Item -ItemType Directory -Path $newMainActivityDir -Force | Out-Null
+        
+        # Write MainActivity.java to new location
+        $newMainActivityPath = Join-Path $newMainActivityDir "MainActivity.java"
+        Set-Content $newMainActivityPath $mainActivityContent
+        
+        Write-Host "Updated MainActivity.java with package: $NewAppId" -ForegroundColor Green
+    } else {
+        Write-Host "Warning: MainActivity.java not found" -ForegroundColor Red
+    }
+
     # Navigate to android folder and build
-    Write-Host "Building Android APK..." -ForegroundColor Yellow
+    Write-Host "Cleaning previous build artifacts..." -ForegroundColor Yellow
+    
     Push-Location android
+    
+    # Use Gradle clean which handles file locks properly
+    .\gradlew.bat clean --quiet
+    
+    Write-Host "Building Android APK..." -ForegroundColor Yellow
     .\gradlew.bat assembleRelease
     Pop-Location
 
@@ -148,8 +202,8 @@ try {
 
     # Sign the APK
     Write-Host "Signing APK..." -ForegroundColor Yellow
-    $variant = $NewAppId.Split('.')[-1]
-    $outputName = "MangaBox-$variant-release.apk"
+    $outputName = "MangaBox-$outputSuffix-release.apk"
+    
     
     # Check for Android SDK build-tools
     $buildToolsPath = Get-Content "android\local.properties" | Where-Object { $_ -match "sdk.dir" } | ForEach-Object { 
@@ -256,7 +310,15 @@ try {
     }
 
 } finally {
-    # Restore original config
-    Write-Host "Restoring original capacitor.config.json..." -ForegroundColor Yellow
-    Move-Item $backupConfig $originalConfig -Force
+    # Restore original config files
+    Write-Host "Restoring original configuration files..." -ForegroundColor Yellow
+    if (Test-Path $backupConfig) {
+        Move-Item $backupConfig $originalConfig -Force
+    }
+    if (Test-Path $buildGradleBackup) {
+        Move-Item $buildGradleBackup $buildGradlePath -Force
+    }
+    if (Test-Path $stringsXmlBackup) {
+        Move-Item $stringsXmlBackup $stringsXmlPath -Force
+    }
 }
