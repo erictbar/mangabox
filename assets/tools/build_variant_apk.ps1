@@ -15,7 +15,7 @@ $variants = @(
     },
     @{
         AppId = "com.EricBarbosa.MangaBox.fork"
-        AppName = "MangaBox"
+        AppName = "f MangaBox"
         OutputSuffix = "eric"
     }
 )
@@ -106,6 +106,31 @@ try {
         Write-Host "Syncing with existing Android platform..." -ForegroundColor Yellow
         npx @capacitor/cli sync android
     }
+
+    # Update Android build.gradle with the correct package ID
+    Write-Host "Updating Android build.gradle..." -ForegroundColor Yellow
+    $buildGradlePath = "android\app\build.gradle"
+    $buildGradleContent = Get-Content $buildGradlePath -Raw
+    
+    # Update namespace and applicationId
+    $buildGradleContent = $buildGradleContent -replace 'namespace\s+"[^"]+"', "namespace `"$NewAppId`""
+    $buildGradleContent = $buildGradleContent -replace 'applicationId\s+"[^"]+"', "applicationId `"$NewAppId`""
+    
+    Set-Content $buildGradlePath $buildGradleContent
+    Write-Host "Updated build.gradle with package ID: $NewAppId" -ForegroundColor Green
+
+    # Update Android strings.xml with the correct app name
+    Write-Host "Updating Android strings.xml..." -ForegroundColor Yellow
+    $stringsXmlPath = "android\app\src\main\res\values\strings.xml"
+    $stringsXmlContent = Get-Content $stringsXmlPath -Raw
+    
+    # Update app_name and title_activity_main
+    $stringsXmlContent = $stringsXmlContent -replace '<string name="app_name">[^<]*</string>', "<string name=`"app_name`">$NewAppName</string>"
+    $stringsXmlContent = $stringsXmlContent -replace '<string name="title_activity_main">[^<]*</string>', "<string name=`"title_activity_main`">$NewAppName</string>"
+    $stringsXmlContent = $stringsXmlContent -replace '<string name="package_name">[^<]*</string>', "<string name=`"package_name`">$NewAppId</string>"
+    
+    Set-Content $stringsXmlPath $stringsXmlContent
+    Write-Host "Updated strings.xml with app name: $NewAppName" -ForegroundColor Green
 
     # Navigate to android folder and build
     Write-Host "Building Android APK..." -ForegroundColor Yellow
