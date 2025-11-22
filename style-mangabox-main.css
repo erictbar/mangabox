@@ -154,6 +154,10 @@
 
 	--mb-page-color: #f5f5f5;
 	--mb-card-color: #ffffff;
+
+	--mb-placeholder-color: #fafafa;
+	--mb-gear-color: #fdfdfd;
+
 	--mb-input-color: #f6f6f6;
 	--mb-hover-color: #eeeeee;
 	--mb-active-color: #f0f0f0;
@@ -187,6 +191,10 @@
 
 	--mb-page-color: #202020;
 	--mb-card-color: #353535;
+
+	--mb-placeholder-color: #252525;
+	--mb-gear-color: #252525;
+
 	--mb-input-color: #252525;
 	--mb-hover-color: #606060;
 	--mb-active-color: #656565;
@@ -245,6 +253,8 @@ body {
 	overflow-y: visible;
 	-webkit-text-size-adjust: 100%;
 	text-size-adjust: 100%;
+	overflow: hidden;
+
 }
 
 .fa-apple {
@@ -353,6 +363,8 @@ body {
 	margin: 2px;
 	border-radius: 50%;
 	background-color: var(--mb-hover-color);
+	cursor: pointer;
+
 }
 
 .mini-thumb:hover {
@@ -456,24 +468,25 @@ body {
 	bottom: 0px;
 	background-color: hsla(348, 100%, 20%, 0.75);
 	padding: 0px 20px;
-	overflow:auto;
+	overflow: auto;
 	backdrop-filter: blur(20px);
-	transition:all 0.3s
+	transition: all 0.3s
 }
 
-#infoText.visible{
-	display:block;
+#infoText.visible {
+	display: block;
 }
 
-#infoText h1{
- font-size: 24px;
- font-weight: 600;
- margin-bottom:20px;
- margin-top:30px;
+#infoText h1 {
+	font-size: 24px;
+	font-weight: 600;
+	margin-bottom: 20px;
+	margin-top: 30px;
 }
 
-#infoText div, li{
-	margin-bottom:10px;
+#infoText div,
+li {
+	margin-bottom: 10px;
 }
 
 @keyframes fadeIn {
@@ -543,6 +556,40 @@ a {
 	grid-template-rows: 60px auto;
 	transition: grid-template-rows 0.2s, background-color 0.3s ease;
 	background: var(--mb-page-color);
+}
+/* Fade-in animation */
+@keyframes loader_fadein {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+#mainLoader {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	width: 300px;
+	height: 300px;
+	border-radius: 50%;
+	transform: translate(-50%, -50%);
+	display: block;
+	z-index: 10000;
+	animation: 
+		loader_spin 1.5s linear infinite,
+	   loader_fadein 0.75s ease-out forwards;
+	contain: layout style paint;
+}
+
+#mainLoader span {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	font-size: 200px;
+	color: var(--mb-gear-color);
+	transition: color 0.3s;
+}
+
+#mainLoader.hidden {
+	display:none;
 }
 
 #dragbar {
@@ -1025,6 +1072,28 @@ a {
 	aspect-ratio: var(--mb-cover-aspect);
 	overflow: hidden;
 	border-radius: var(--mb-cover-radius);
+}
+
+.thumbnail-fake-wrapper {
+	max-width: 100%;
+	width: var(--mb-card-cover-max-width);
+	position: relative;
+	aspect-ratio: var(--mb-cover-aspect);
+	overflow: hidden;
+	border-radius: var(--mb-cover-radius);
+}
+
+.series-container {
+	transition: all 0.3s;
+}
+
+.series-container.unattached {
+	max-width: 100%;
+	width: var(--mb-card-cover-max-width);
+	aspect-ratio: 0.55;
+	/*var(--mb-cover-aspect);*/
+	transition: all 0.3s;
+	background-color: var(--mb-placeholder-color);
 }
 
 .button-wrapper {
@@ -1599,6 +1668,11 @@ a {
 	padding-left: var(--mb-area-safe-padding-left);
 	padding-right: var(--mb-area-safe-padding-right);
 	transition: opacity 0.3s ease;
+
+	will-change: transform;
+	contain: layout style paint;
+	overflow-y: auto;
+
 }
 
 #homeStripSeriesResults,
@@ -1740,9 +1814,33 @@ a {
 	opacity: 0;
 }
 
+.series-container:has(.attached) {
+	background: var(--mb-placeholder-color);
+	contain: layout style paint;
+}
+
+.series-container:has(.attached.visible) {
+	background: var(--mb-page-color);
+	contain: layout style;
+}
+
+.attached {
+	opacity: 0;
+}
+
+.attached.visible {
+	opacity: 1;
+}
+
+
 .series-container,
 .book-container {
 	background-color: transparent;
+	will-change: transform;
+	transform: translateZ(0);
+	backface-visibility: hidden;
+	contain: layout style;
+
 }
 
 .series-item,
@@ -1758,6 +1856,8 @@ a {
 	box-shadow: rgba(0, 0, 0, 0.6) 0px 5px 15px -10px;
 	border-radius: var(--mb-card-radius);
 	transition: scale 0.3s, box-shadow 0.3s, background-color 0.3s ease;
+
+	contain: layout style paint;
 }
 
 .series-item.scaled,
@@ -2193,13 +2293,13 @@ body.sticky-medium #stickyContainer .library-item.highlighted .library-name {
 
 body.sticky-small #stickyContainer {
 	/*	height: 105px; */
-	max-width: calc(100vw);
+	max-width: 100dvw;
 	min-width: 350px;
 	flex-wrap: wrap;
 }
 
 body.sticky-small #librariesList {
-	max-width: calc(100vw);
+	max-width: 100dvw;
 	/*reduce to add space for buttons?*/
 }
 

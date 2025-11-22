@@ -285,6 +285,20 @@ jobs:
 
       - name: Capacitor sync
         run: npx cap sync ${{ matrix.sys }}
+      
+      - name: Show generated AndroidManifest.xml
+        if: ${{ matrix.sys == 'android' }}
+        run: |
+          echo "----- ANDROID MANIFEST -----"
+          cat android/app/src/main/AndroidManifest.xml || true
+          echo "-----------------------------"
+
+      - name: Overwrite generated manifest
+        if: ${{ matrix.sys == 'android' }}
+        run: |
+          cp capacitor.AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          echo "Using custom AndroidManifest.xml:"
+          cat android/app/src/main/AndroidManifest.xml
 
       - name: iOS - Install CocoaPods dependencies
         if: ${{ matrix.sys == 'ios' }}

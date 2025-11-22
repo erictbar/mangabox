@@ -35,6 +35,7 @@
 </head>
 
 <body>
+	<div id="mainLoader" class="hidden"><span class="fa-solid fa-gear"></span></div>
 	<div id="mainUI">
 		<div id="menuBars">
 			<div id="stickyContainer" class="hidden">
@@ -383,6 +384,7 @@
 
 	</script>
 
+	<script src="script-transliterate.js"></script>
 	<script src="script-auth.js"></script>
 
 	<script>
@@ -659,9 +661,6 @@
 			tempDivChild2.innerHTML = obRedrawDownloadButton(bookId);
 		}
 
-		//TODO Is it possible to generate download-progress events in electron too
-		//TODO instead of using the other layer for functions?
-
 		if (isCapacitor || isElectron) {
 			window.addEventListener('download-progress', (event) => {
 				const { bookId, completed, total } = event.detail;
@@ -701,12 +700,9 @@
 		document.addEventListener('fullscreenchange', updateFullscreenLabel);
 
 		function updateFullscreenLabel() {
-			fullscreenLabel.classList.remove('fa-expand', 'fa-compress');
-			if (document.fullscreenElement) {
-				fullscreenLabel.classList.add('fa-compress');
-			} else {
-				fullscreenLabel.classList.add('fa-expand');
-			}
+			const isFull = !!document.fullscreenElement;
+			fullscreenLabel.classList.toggle('fa-compress', isFull);
+			fullscreenLabel.classList.toggle('fa-expand', !isFull);
 		}
 
 		//MB Main Variable Setup 
@@ -1043,8 +1039,8 @@
 		function swapThemeClass(classSelector, lightClass, darkClass, toDark) {
 			Array.from(document.getElementsByClassName(classSelector)).forEach((item) => {
 				if (!item.classList.contains('no-theme-icon')) {
-					item.classList.remove(toDark ? lightClass : darkClass);
-					item.classList.add(toDark ? darkClass : lightClass);
+					item.classList.toggle(darkClass, toDark);
+					item.classList.toggle(lightClass, !toDark);
 				}
 			});
 		}
@@ -1372,16 +1368,12 @@
 
 		async function handleThumbnailClick(imagePath, libraryId) {
 			try {
-				// Fetch the image file
 				const response = await fetch(imagePath);
 				const blob = await response.blob();
 
-				// Convert blob to base64
 				const base64 = await readFileAsBase64(blob);
 
-				// Now pass it to your existing function
 				applyLibraryImage(libraryId, base64);
-				//alert(base64); // <-- replace this with your actual handler
 
 			} catch (err) {
 				console.error("Error converting image:", err);
@@ -1467,7 +1459,7 @@
 				const filteredSeries = dataArray.filter((item, index) =>
 					filterArray[index]
 				);
-				displaySeries(filteredSeries, homeStripSeriesResults);
+				displaySeries(filteredSeries, homeStripSeriesResults, null, false);
 
 				// Reset book results strip
 				//TODO Need to check also books for year?
@@ -1492,7 +1484,7 @@
 					titleIn => titleIn.title.toLowerCase().includes(searchString)
 				)
 			);
-			displaySeries(filteredSeries, homeStripSeriesResults);
+			displaySeries(filteredSeries, homeStripSeriesResults, null, false);
 			focusItem('top');
 
 			const unFilteredBooks = await callAPI('c_bookslistall',
@@ -1692,11 +1684,12 @@
 			}
 		}
 
-		async function applyLibraryFilters() {
+
+		async function applyLibraryFilters(boot = false) {
 			const { path, params } = getHashAndParams();
 			const libraryId = params.get('library_id');
 
-			const divs = Array.from(seriesGrid.children);
+			const divs = seriesContainerProxy;//Array.from(seriesGrid.children);
 			divs.forEach(div => {
 				div.infilter = true;
 			});
@@ -1710,22 +1703,41 @@
 				button.icon.innerHTML = `<span style="${button.switches[button.selected].iconStyle}" class="${button.switches[button.selected].iconClass}${button.selected != 0 ? ' mb-accent' : ''}"></span>`;
 				button.caption.innerHTML = `${button.switches[button.selected].caption}`;
 
+				//For each button check if the button is a sort button or one of the filters buttons
 				if (button.switches[button.selected].sortFunction) {
+					// We are processing the sort
 					divs.sort((a, b) => {
 						return button.switches[button.selected].sortFunction(a, b);
 					});
+					/*
 					divs.forEach((item, index) => {
 						item.style.order = index;
 					});
+					*/
+					/*
+					if (!boot){
+						seriesGrid.innerHTML = "";
+						divs.forEach(div => seriesGrid.appendChild(div));
+					}
+					*/
 				} else {
+					// We are processing the filters, infilter is "and"ed with all the button filters.
 					divs.forEach((div) => {
 						div.infilter = div.infilter && button.switches[button.selected].filterFunction(div);
 					});
 				}
 			});
+			seriesGrid.innerHTML = "";
+			if (!boot) {
+				divs.forEach(div => {
+					if (div.infilter) seriesGrid.appendChild(div)
+				});
+			}
+			/*
 			divs.forEach((div) => {
 				div.style.display = div.infilter ? '' : 'none';
 			});
+			*/
 		}
 
 		// Build filter buttons items
@@ -1837,20 +1849,13 @@
 		function updateStickyMenu() {
 			const containerWidth = mainUI.getBoundingClientRect().width;
 
-			if (containerWidth - mb.libSizer.rightmin - mb.libSizer.large >= 60) {
-				document.body.classList.remove('sticky-medium');
-				document.body.classList.remove('sticky-hybrid');
-				document.body.classList.remove('sticky-small');
+		  	document.body.classList.remove('sticky-medium', 'sticky-hybrid', 'sticky-small');
 
+			if (containerWidth - mb.libSizer.rightmin - mb.libSizer.large >= 60) {
+				//nothing happens
 			} else if (containerWidth - mb.libSizer.rightmin - mb.libSizer.medium >= 60) {
-				document.body.classList.remove('sticky-medium');
-				document.body.classList.remove('sticky-hybrid');
-				document.body.classList.remove('sticky-small');
 				document.body.classList.add('sticky-medium');
 			} else {
-				document.body.classList.remove('sticky-medium');
-				document.body.classList.remove('sticky-hybrid');
-				document.body.classList.remove('sticky-small');
 				document.body.classList.add('sticky-small');
 
 				if (containerWidth - mb.libSizer.large >= 9) {
@@ -1909,7 +1914,9 @@
 			await setAndroidInsets();
 		});
 
-		document.addEventListener('visibilitychange', fixZoomOnPWA);
+		document.addEventListener('visibilitychange', (event) => {
+			fixZoomOnPWA()
+		});
 
 		window.addEventListener('pageshow', (event) => {
 			if (event.persisted) fixZoomOnPWA();
@@ -1924,10 +1931,12 @@
 			blanker.style.opacity = val;
 			await wait(100);
 		}
+
 		async function executeFaderGradient(val) {
 			fader.style.opacity = val;
 			await wait(300);
 		}
+
 		//MB Offline Download Functions
 		function arrayBufferToBase64(buffer) {
 			let binary = '';
@@ -2452,11 +2461,17 @@
 			if (bookId == null) {
 				await callAPI(null, `/api/v1/series/${seriesId}/read-progress`, read ? 'POST' : 'DELETE', null, false);
 				const seriesData = await callAPI(`c_seriesdata${seriesId}`, `/api/v1/series/${seriesId}`);
-				buildSeriesItem(item, seriesData, null);
+				if (item.dat_dynamic) {
+					seriesItemProxy[seriesId] = await buildSeriesItem(item, seriesData, null, true);
+					item.appendChild(seriesItemProxy[seriesId]);
+				} else {
+					buildSeriesItem(item, seriesData, null); //TODO Perché è NULL? check vecchie versioni
+				}
 				mb.currentlyScaled = item;
 			} else {
 				await callAPI(null, `/api/v1/books/${bookId}/read-progress`, read ? 'PATCH' : 'DELETE', read ? JSON.stringify({ completed: true }) : null, false);
 				mb.currentlyScaled = item;
+
 				const { path, params } = getHashAndParams();
 				if (path == 'dashboard' || path == '') {
 					mb.currentlyScaled = null;
@@ -2543,7 +2558,7 @@
 				)
 			);
 
-			displaySeries(filteredItems, seriesGrid);
+			displaySeries(filteredItems, seriesGrid, null, false);
 			focusItem('top');
 
 		}
@@ -2589,6 +2604,7 @@
 						item.parentElement.classList.add('top-pop');
 
 						mb.currentlyScaled = item;
+
 						event.preventDefault();
 					} else {
 						/*
@@ -2605,6 +2621,7 @@
 						item.classList.add('scaled');
 						item.parentElement.classList.add('top-pop');
 						mb.currentlyScaled = item;
+
 					} else {
 						/*
 						item.classList.remove('scaled');
@@ -2641,7 +2658,52 @@
 		}
 
 		//MB Series Items Creation
-		async function buildSeriesItem(item, serie, target) {
+
+		const attachedObserver = new IntersectionObserver(async (entries) => {
+			for (const entry of entries) {
+
+				if (entry.isIntersecting) {
+					if (!seriesItemProxy[entry.target.id]) {
+						seriesItemProxy[entry.target.id] = await buildSeriesItem(entry.target, entry.target.dat_serie, entry.target.dat_target, true)
+					}
+
+					entry.target.append(seriesItemProxy[entry.target.id])
+					entry.target.classList.remove('unattached');
+					let frameRect = seriesItemProxy[entry.target.id].getBoundingClientRect()
+					entry.target.style.aspectRatio = frameRect.width / frameRect.height
+				} else {
+					if (mb.currentlyScaled?.parentElement?.id == entry.target.id) {
+						mb.currentlyScaled.classList.remove('scaled');
+						mb.currentlyScaled.parentElement.classList.remove('top-pop');
+						mb.currentlyScaled = null;
+					}
+					const child = seriesItemProxy[entry.target.id];
+
+					if (child && entry.target.contains(child)) {
+						entry.target.removeChild(child);
+					}
+					entry.target.classList.add('unattached');
+				}
+			};
+		}, {
+			root: mainContainer,
+			rootMargin: '500px 0px 500px 0px',
+			threshold: 0
+		});
+
+		function buildSeriesData(item, serie) {
+			const unreadCount = serie.booksUnreadCount;
+			const altTitle = getAltTitles(serie);
+			const bookCount = serie.booksCount;
+			item.mbSeriesTitle = serie.metadata.title ?? '';
+			item.mbSeriesStart = timeSplit(altTitle.time)[0];
+			item.mbBooksCount = serie.booksCount;
+			item.mbSeriesRead = (unreadCount == 0);
+			item.mbSeriesDirection = (serie.metadata.readingDirection);
+			item.mbSeriesLanguage = serie.metadata.language;
+		}
+
+		async function buildSeriesItem(item, serie, target, dynamic = false) {
 			const LTRvals = {
 				RIGHT_TO_LEFT: '',
 				LEFT_TO_RIGHT: '<span class="fa-solid fa-clapperboard fa-rotate-270 glyph-dark" style="margin-left:2px;"></span>',
@@ -2830,25 +2892,23 @@
 				navigateTo(`#series?library_id=${serie.libraryId}&series_id=${serie.id}`)
 			});
 
-			item.append(seriesItem);
+			if (dynamic) {
+				return (seriesItem)
+			} else {
+				item.append(seriesItem)
+			}
 		}
 
+
+
 		// Creates and populates the series grid with the data from the series array.
-		async function displaySeries(series, target) {
+		async function displaySeriesOLD(series, target) {
 
 			while (target.firstChild) {
 				target.removeChild(target.firstChild);
 			}
 
 			series.forEach(async (serie) => {
-
-				/*
-				const existing = document.getElementById(serie.id);
-				if (existing) {
-					console.log ("EMERGENCY CLEAN:"+existing);
-					existing.remove(); // Remove the old one to avoid duplicates
-				}
-				*/
 
 				const seriesContainer = addItem('div', {
 					className: 'series-container collector', //XXX was ending with , 'fade-in');
@@ -2862,6 +2922,105 @@
 
 			sectionShow(target); //XXX serve un fade qui???
 		}
+
+
+		let chunkIndex = 0;
+		let seriesOld = null;
+		let seriesContainerProxy = [];
+		let seriesItemProxy = {};
+		const BATCH = 100;
+
+
+		function renderSeriesChunk(series, target, focusId) {
+			if (series != seriesOld) {
+				return;
+			}
+
+			const slice = seriesContainerProxy.slice(chunkIndex, chunkIndex + BATCH);
+			chunkIndex += BATCH;
+
+			const frag = document.createDocumentFragment();
+
+
+			for (const serieContainer of slice) {
+				attachedObserver.observe(serieContainer)
+				if (serieContainer.infilter) frag.appendChild(serieContainer);
+			}
+
+			target.appendChild(frag);
+
+			if (chunkIndex < seriesContainerProxy.length) {
+				requestAnimationFrame(() => { renderSeriesChunk(series, target, focusId) });
+				//renderSeriesChunk(series, target, focusId);
+			} else {
+				sectionShow(target);
+				//TODO Da qualche parte andava il jump to top?
+				focusItem(focusId ? focusId : 'top')
+				//if (focusId) focusItem(focusId);
+			}
+		}
+
+		// Creates and populates the series grid with the data from the series array.
+		async function displaySeries(series, target, focusId, dynamic) {
+
+			if (dynamic) {
+				seriesContainerProxy = []
+				seriesItemProxy = {};
+
+				for (const serie of series) {
+					const seriesContainer = addItem('div', {
+						className: 'series-container collector unattached',
+						id: serie.id,
+					});
+					seriesContainer.dat_serie = serie;
+					seriesContainer.dat_target = target;
+					seriesContainer.dat_dynamic = dynamic;
+					buildSeriesData(seriesContainer, serie);
+
+					//seriesItemProxy[serie.id] = await (buildSeriesItem(seriesContainer, serie, target, dynamic));
+					seriesContainerProxy.push(seriesContainer);
+
+				}
+
+				chunkIndex = 0;
+
+				while (target.firstChild) {
+					target.removeChild(target.firstChild);
+				}
+
+				// If dynamic is not null we are loading a series in series grid, which means we can
+				// apply the filters for that library. "dynamic" is either null or the libraryId
+				if (dynamic) {
+					fetchLibraryFilters(dynamic)
+				}
+
+				seriesOld = series;
+
+				renderSeriesChunk(series, target, focusId);
+
+			} else {
+				// TODO Ripulire questa parte che in parte viene da sopra
+				while (target.firstChild) {
+					target.removeChild(target.firstChild);
+				}
+
+				series.forEach(async (serie) => {
+
+					const seriesContainer = addItem('div', {
+						className: 'series-container collector', //XXX was ending with , 'fade-in');
+						id: serie.id,
+					});
+
+					buildSeriesItem(seriesContainer, serie, target);
+
+					target.append(seriesContainer);
+
+				});
+
+				sectionShow(target);
+			}
+		}
+
 
 		// Function that fetches all the series list within a library, sorted by name, then calls displaySeries to show the fetched series
 		async function fetchAllSeries(libraryId) {
@@ -2898,7 +3057,6 @@
 					item.firstChild.classList.add('scaled');
 				}
 				item.classList.add('top-pop');
-
 			}
 		}
 
@@ -2906,9 +3064,9 @@
 		async function openLibrary(libraryId, seriesId) {
 			await libraryHighlight(libraryId, true);		// Triggers and manages the library menu
 			const allSeries = await fetchAllSeries(libraryId);		// Updates the series within the library
-			await displaySeries(allSeries, seriesGrid);
-			fetchLibraryFilters(libraryId);
-			focusItem(seriesId || 'top');
+			//fetchLibraryFilters(libraryId);
+			await displaySeries(allSeries, seriesGrid, seriesId, libraryId);
+			//focusItem(seriesId || 'top');
 			//TODO Move here the logic that enables the library options buttons?
 		}
 
@@ -3002,6 +3160,7 @@
 			});
 		};
 
+
 		function buildLibraryItem(itemId, libraryName, imagePath = null) {
 			const isLib = (imagePath == null);
 
@@ -3031,7 +3190,11 @@
 			if (isLib) {
 				libraryThumbnail.onerror = () => {
 					libraryThumbnail.onerror = null;
-					libraryThumbnail.src = `library-letters/${libraryName.charAt(0).toUpperCase()}.png`
+					libraryThumbnail.src = `library-letters/${transliterate(libraryName.charAt(0)).charAt(0).toUpperCase()}.png`
+					libraryThumbnail.onerror = () => {
+						libraryThumbnail.onerror = null;
+						libraryThumbnail.src = 'library-letters/blank.png'; // your fallback image
+					};
 				};
 			}
 
@@ -3263,13 +3426,6 @@
 
 						} else {
 							showModal('', false, generatePics(libraryId, "Select a thumbnail or drag an image over the library button"), [{ label: 'Ok', runfunction: () => closeModal(), high: true }]);
-
-							//TODO RIMETTER COME OPZIONE
-							/*
-							showModal('circle-info-svg.svg', true, 'Drop an image on the library button to change thumbnail.',
-								[{ label: 'Ok', runfunction: closeModal, high: true }]
-							);
-							*/
 						}
 					} else {
 						showModal(mb.libraryIcons[libraryId], false, 'Remove custom library thumbnail?', [
@@ -3358,6 +3514,14 @@
 
 		async function displayHeader(serie) {
 			const altTitle = getAltTitles(serie);
+
+			const summary = (serie.metadata.summary != "")
+				? serie.metadata.summary.replace(/\n/g, '<br>')
+				: (serie.booksMetadata.summary != ""
+					? "<u>Summary from book " + serie.booksMetadata.summaryNumber + "</u><br>" + serie.booksMetadata.summary.replace(/\n/g, '<br>')
+					: ""
+				)
+
 			const creditString = altTitle.story == altTitle.art
 				? `Story and art by <a class="red search-trigger" href="javascript:navigateTo('#search?search_string=${altTitle.story.toLowerCase()}');">${altTitle.story}</a>`
 				: `Story by <a class="red search-trigger" href="javascript:navigateTo('#search?search_string=${altTitle.story.toLowerCase()}');">${altTitle.story}</a>, art by <a class="red search-trigger" href="javascript:navigateTo('#search?search_string=${altTitle.art.toLowerCase()}');">${altTitle.art}</a>`;
@@ -3377,7 +3541,7 @@
 					<a class="red search-trigger" href="javascript:navigateTo('#search?search_string=y:${altTitle.time}');">${altTitle.time}</a> (${serie.booksCount} ${serie.booksCount == 1 ? "book" : "books"}) - ${creditString}</span>
 			</div>
 			<div id="bookScrollBox" class="header-summary scrollbox" data-scroll-direction="vertical">
-				<div class="scrollbox-content">${serie.metadata.summary.replace(/\n/g, '<br>')}</div>
+				<div class="scrollbox-content">${summary}</div>
 				<div class="scrollbox-scrollbar">
 					<div class="scrollbox-thumb"></div>
 				</div>
@@ -3436,26 +3600,12 @@
 			bookDetailsSummary.style.opacity = 1;
 
 			const seriesData = await callAPI(`c_seriesdata${book.seriesId}`, `/api/v1/series/${book.seriesId}`);
-			/*
-			const seriesBooks = await callAPI(
-				`/api/v1/books/list?unpaged=true&sort=metadata.numberSort,asc`,
-				'POST', `{"condition": {"seriesId": {"operator": "is","value": "${book.seriesId}"}}}`
-			);
-			*/
 
 			mb.seriesData = seriesData;
 			mb.currentBook = book;
 			mb.prevBook = await callAPI(`c_books${book.id}prev`, `/api/v1/books/${book.id}/previous`) || null;
 			mb.nextBook = await callAPI(`c_books${book.id}next`, `/api/v1/books/${book.id}/next`) || null;
 
-			/*
-						if (book.number > 1) {
-							mb.prevBook = seriesBooks.content[book.number - 2];
-						}
-						if (book.number < seriesData.booksCount) {
-							mb.nextBook = seriesBooks.content[book.number];
-						}
-			*/
 		}
 
 		//MB Book Item Creation
@@ -3643,8 +3793,6 @@
 				});
 
 				addClickPointerEvents(downloadButton, () => {
-					//TODO Add here a control if we are on web or not, and call the proper download routine based on electron or capacitor
-					//TODO Or even better don't show the button in web mode :O
 					if (obIsBookCompleted(book.id)) {
 						// Book is finished, you can delete the book!
 						bookDownloadUI.classList.remove('done');
@@ -3758,13 +3906,7 @@
 			}
 
 			books.forEach(book => {
-				/*
-				const existing = document.getElementById(book.id);
-				if (existing) {
-					console.log ("EMERGENCY CLEAN:"+existing);
-					existing.remove(); // Remove the old one to avoid duplicates
-				}
-				*/
+
 				const bookContainer = addItem('div', {
 					className: 'book-container collector',
 					id: book.id
@@ -3859,7 +4001,7 @@
 					return (await callAPI(`c_recentseries`, `/api/v1/series/new?page=${page}&size=${size}`));
 				},
 				showItems: async (input, target) => {
-					displaySeries(input, target);
+					displaySeries(input, target, null, false);
 				}
 			},
 
@@ -3869,7 +4011,7 @@
 					return (await callAPI(`c_updatedseries`, `/api/v1/series/updated?page=${page}&size=${size}`));
 				},
 				showItems: async (input, target) => {
-					displaySeries(input, target);
+					displaySeries(input, target, null, false);
 				}
 			},
 
@@ -4064,7 +4206,7 @@
 
 			orientationThresholdRatio: 1.0,		//Orientation threshold
 
-			preloadCount: 15,			// TODO SET BACK TO 15 Image preload count
+			preloadCount: 5,			// TODO SET BACK TO 15 Image preload count
 			preloadPicDelay: 300,	// Delay before adding new spreads to the preload stack
 			loadDelay: 100,			// Delay used when jumping to a spread before really updating
 			jumpTimeout: null,		// Timeout counter for jumping to spreads
@@ -4314,13 +4456,13 @@
 			handleCloseReader();
 		});
 
-		function changeReaderAnimation(){
+		function changeReaderAnimation() {
 			mb.readerAnimationControl.forEach(item => {
 				readerAnimation.classList.remove(item.icon);
 			});
 			readerAnimation.classList.add(mb.readerAnimationControl[mb.readerAnimation].icon);
 			readerAnimation.title = mb.readerAnimationControl[mb.readerAnimation].label;
-			
+
 			rd.turnTime = rd.turnTime0 * mb.readerAnimation;
 			rd.scrollSpeed = rd.scrollSpeed0 * mb.readerAnimation;
 			rd.turnScrollDelay = rd.turnScrollDelay0 * mb.readerAnimation;
@@ -4359,14 +4501,8 @@
 
 		// Setup incognito button
 		function setIncognito(status) {
-			readerIncognito.classList.remove('incognito');
-			incognitoMark.classList.remove('incognito');
-
-			if (status) {
-				readerIncognito.classList.add('incognito');
-				incognitoMark.classList.add('incognito')
-			};
-
+			readerIncognito.classList.toggle('incognito', status);
+			incognitoMark.classList.toggle('incognito', status);
 			rd.incognito = status;
 		}
 
@@ -4571,7 +4707,7 @@
 			//item.style.objectFit = 'fill';
 			item.style.objectPosition = 'center center';
 			item.style.width = `calc(min(100vw, var(--mb-reader-scale) / 100 * ${ratio} * 100vh))`;
-			item.style.height = `calc(min(${100 / ratio}vw, var(--mb-reader-scale) / 100 * vh) )`;
+			item.style.height = `calc(min(${100 / ratio}vw, var(--mb-reader-scale) / 100 * 100vh) )`;
 		}
 
 		// Size the spread for a two pages spread with fit on page
@@ -4580,7 +4716,7 @@
 			//item.style.height = `calc( min(${100 / (ratio * 0.5)}vw, 100vh))`;
 
 			item.style.width = `calc(2 * min(100vw, var(--mb-reader-scale) / 100 * ${ratio} * 50vh))`;
-			item.style.height = `calc( min(${100 / (ratio * 0.5)}vw, var(--mb-reader-scale) / 100 * vh) )`;
+			item.style.height = `calc( min(${100 / (ratio * 0.5)}vw, var(--mb-reader-scale) / 100 * 100vh) )`;
 		}
 
 		// Add this once when initializing the viewer
@@ -4879,21 +5015,13 @@
 				spreadObject.uiItem.style.width = pageObjectL.uiPage.style.width
 				spreadObject.uiItem.style.height = pageObjectL.uiPage.style.height
 
-				//buildSize2P(spreadObject.uiItem, mb.readerMaxRatio);
 				//TODO Ma questo serve???? Farlo uguale a readerViewer?
-				//spreadObject.uiItem.style.width = `calc(min(200vw, ${100 * mb.readerMaxRatio}vh))`;
-
-				//buildSize(pageObjectL.uiContainer, mb.readerMaxRatio * 0.5);
-				//buildSize(pageObjectR.uiContainer, mb.readerMaxRatio * 0.5);
 
 				pageObjectL.uiPage.style.float = 'right';
 				pageObjectL.uiPage.style.objectFit = 'cover';
 				pageObjectL.uiPage.style.objectPosition = 'left';
 
 				if ((pageObjectL.isCurrent)) rd.currentSpreadIndex = index;
-
-				//spreadObject.uiItem.append(spreadObject.uiShadowL, spreadObject.uiShadowR);
-				//spreadObject.uiItem.append(spreadObject.uiLightL, spreadObject.uiLightR);
 
 				webtoonContainer.append(spreadObject.uiItem);
 				//spreadHide(index);
@@ -5171,7 +5299,7 @@
 		}
 
 		function printStack(str_in) {
-			return; //XXX Disable debug of preload stack
+			return; //DEBUG Disable debug of preload stack
 			let out = str_in + ' *';
 			rd.picLoadStack.forEach(element => {
 				out = out + ' ' + element;
@@ -5592,7 +5720,7 @@
 				if (turnDirection == 'turn-right') {
 					rightPage.animate(appearR2L_slideinL2R, animData).finished.then(() => hideOldSpread(index, oldindex));
 					leftPage.animate(appearL2R, animData);
-//TODO Why here uses rd.turntime instead of turntime? in this way it doesn't work when force = true? 
+					//TODO Why here uses rd.turntime instead of turntime? in this way it doesn't work when force = true? 
 					leftPage.animate(unFade, { duration: rd.turnTime, easing: 'ease-in' });
 
 					newSpreadShadowR.animate(...animShadowFWD('left', turnTime, easeFull));
@@ -5735,12 +5863,9 @@
 
 		// Generic spread class definition, not valid for arrowleft and right in portrait mode!
 		function getSpreadFocus(spreadIndex) {
-			console.log("SPREAD ARRAY")
-			console.log(spreadIndex);
-			console.log(rd.spreadsArray[spreadIndex])
-			
+
 			//TODO Check why when vertical mode and loading page from scratch it fails
-			if (rd.spreadsArray[spreadIndex] == null ) return;
+			if (rd.spreadsArray[spreadIndex] == null) return;
 
 			const spreadKind = rd.spreadsArray[spreadIndex].spreadKind;
 			if (spreadKind === 'cover-page') {
@@ -6087,6 +6212,8 @@
 			closeBookDetails();
 			mb.screenAR = getScreenAR();
 
+			mainLoader.classList.remove('hidden');
+
 			switch (path) {
 				case '':
 				case 'dashboard':
@@ -6131,6 +6258,8 @@
 				default:
 					console.log('no selection');
 			}
+			mainLoader.classList.add('hidden');
+
 			await executeFade(0);
 		}
 
@@ -6246,16 +6375,16 @@
 
 				if (Math.abs(diffX) > threshold && Math.abs(diffY) < threshold) {
 					if (diffX > 0) {
-						onSwipeRight?.(); // Call custom right swipe function
+						onSwipeRight?.();
 					} else {
-						onSwipeLeft?.(); // Call custom left swipe function
+						onSwipeLeft?.();
 					}
 					item.SingleTouch = false; // Prevent repeat action on the same swipe
 				} else if (Math.abs(diffY) > threshold && Math.abs(diffX) < threshold) {
 					if (diffY > 0) {
-						onSwipeDown?.(); // Call custom down swipe function
+						onSwipeDown?.();
 					} else {
-						onSwipeUp?.(); // Call custom up swipe function
+						onSwipeUp?.();
 					}
 					item.SingleTouch = false;
 				}
@@ -6269,15 +6398,10 @@
 		enableTouchResponse(thumbStripWT, 20, handleLargeThumbs, handleSmallThumbs, null, null);
 		enableTouchResponse(thumbStrip, 20, null, null, handleLargeThumbs, handleSmallThumbs);
 
-		/*
-		webtoonContainer.addEventListener('click', () => {
-			toggleMenu();
-		})
-		*/
-
 		webtoonContainer.addEventListener('pointerdown', () => {
 			rd.touchLock = true;
 		});
+
 		webtoonContainer.addEventListener('pointerup', () => {
 			if (!rd.touchLock) return;
 			rd.touchLock = false;
@@ -6287,6 +6411,7 @@
 		webtoonContainer.addEventListener('scroll', () => {
 			rd.webtoonScrollRatio = webtoonRatio();
 		})
+
 		enableTouchResponse(webtoonContainer, 30, null, handleCloseReader, null, null);
 
 	</script>
