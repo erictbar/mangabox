@@ -1,11 +1,11 @@
 {
-  "appId": "com.EricBarbosa.MangaBox.echamax",
-  "appName": "e MangaBox",
-  "webDir": "dist/mangabox",
-  "bundledWebRuntime": true,
-  "plugins": {
-    "CapacitorHttp": {
-      "enabled": true
-    }
-  }
+	"appId": "com.EricBarbosa.MangaBox.echamax",
+	"appName": "e MangaBox",
+	"webDir": "dist/mangabox",
+	"bundledWebRuntime": true,
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": true
+		}
+	}
 }

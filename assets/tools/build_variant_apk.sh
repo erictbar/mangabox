@@ -34,7 +34,9 @@ cp "$ORIGINAL_CAPACITOR_CONFIG" "$BACKUP_CAPACITOR_CONFIG"
 # Function to restore original config on exit
 cleanup() {
   echo "Restoring original capacitor.config.json..."
-  mv "$BACKUP_CAPACITOR_CONFIG" "$ORIGINAL_CAPACITOR_CONFIG"
+  if [ -f "$BACKUP_CAPACITOR_CONFIG" ]; then
+    mv "$BACKUP_CAPACITOR_CONFIG" "$ORIGINAL_CAPACITOR_CONFIG"
+  fi
 }
 trap cleanup EXIT
 
@@ -61,7 +63,12 @@ fi
 # Navigate to android folder and build
 echo "Building Android APK..."
 cd android
-./gradlew assembleRelease
+
+# Make gradlew executable if needed
+chmod +x gradlew || true
+
+# Use bash to run gradlew (works better in WSL/MinGW environments)
+bash gradlew assembleRelease
 
 # Find the generated APK
 APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n1)

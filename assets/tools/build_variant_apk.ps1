@@ -180,6 +180,42 @@ try {
         Write-Host "Warning: MainActivity.java not found" -ForegroundColor Red
     }
 
+    # Create local.properties with Android SDK path
+    Write-Host "Configuring Android SDK location..." -ForegroundColor Yellow
+    $localPropsPath = "android\local.properties"
+    
+    # Try to find Android SDK
+    $sdkPath = $null
+    $candidates = @(
+        $env:ANDROID_SDK_ROOT,
+        $env:ANDROID_HOME,
+        "D:\Apps\AndroidStudio",
+        "$env:LOCALAPPDATA\Android\Sdk",
+        "C:\Android\Sdk",
+        "$env:USERPROFILE\AppData\Local\Android\Sdk"
+    )
+    
+    foreach ($candidate in $candidates) {
+        if ($candidate -and (Test-Path $candidate)) {
+            $sdkPath = $candidate
+            break
+        }
+    }
+    
+    if (-not $sdkPath) {
+        Write-Host "Error: Android SDK not found. Please set ANDROID_SDK_ROOT or ANDROID_HOME environment variable." -ForegroundColor Red
+        Write-Host "Common SDK locations:" -ForegroundColor Yellow
+        Write-Host "  - %LOCALAPPDATA%\Android\Sdk" -ForegroundColor Yellow
+        Write-Host "  - C:\Android\Sdk" -ForegroundColor Yellow
+        Write-Host "  - %USERPROFILE%\AppData\Local\Android\Sdk" -ForegroundColor Yellow
+        exit 1
+    }
+    
+    # Write local.properties with escaped backslashes
+    $escapedSdkPath = $sdkPath -replace '\\', '\\'
+    "sdk.dir=$escapedSdkPath" | Out-File -FilePath $localPropsPath -Encoding ASCII -Force
+    Write-Host "SDK location configured: $sdkPath" -ForegroundColor Green
+    
     # Navigate to android folder and build
     Write-Host "Cleaning previous build artifacts..." -ForegroundColor Yellow
     
