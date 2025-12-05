@@ -325,7 +325,7 @@ body {
 	text-align: center;
 	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 	/*max-width: 400px;*/
-	width: 200px;
+	width: 260px;
 	color: var(--mb-text-color);
 	font-size: 18px;
 }
@@ -949,6 +949,7 @@ a {
 	width: auto;
 }
 
+.libglyph,
 .library-item span.fa-solid,
 .library-item span.fa-regular {
 	width: var(--mb-span-size);
@@ -1032,6 +1033,8 @@ a {
 	position: relative;
 }
 
+#readlistsButton2.highlighted span.fa-solid,
+#collectionsButton2.highlighted span.fa-solid,
 #offlineLibrary.highlighted span.fa-solid,
 .library-item.search-field.highlighted span.fa-solid,
 .filter-item.highlighted span.fa-solid,
@@ -1670,8 +1673,7 @@ a {
 	transition: opacity 0.3s ease;
 
 	will-change: transform;
-	contain: layout style paint;
-	overflow-y: auto;
+	contain: layout style ; /*XXX WAS layout style paint and removed overflow-y:auto*/
 
 }
 
@@ -1765,7 +1767,8 @@ a {
 	font-size: 20px;
 	margin-left: 20px;
 	height: var(--mb-dialog-button-height);
-	line-height: var(--mb-dialog-button-height);
+	line-height: 20px;
+	align-content:center;
 	padding-right: 50px;
 }
 
@@ -2005,6 +2008,12 @@ book-item {
 	word-break: break-word;
 }
 
+.book-item .info-row{
+	margin-top: 3px;
+	line-height: 16px;
+	margin-bottom: 3px;
+}
+
 .custom-scrollbar {
 	display: flex;
 	justify-content: center;
@@ -2197,6 +2206,10 @@ span.mini-title {
 .glyph-dark {
 	color: var(--mb-glyph-color);
 	transition: color 0.3s ease;
+}
+
+.highlighted .glyph-dark {
+	color:white;
 }
 
 .glyph-flag {

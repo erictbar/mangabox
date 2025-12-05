@@ -41,18 +41,6 @@
 			<div id="stickyContainer" class="hidden">
 				<ul id="librariesList"></ul>
 				<ul id="librariesRightBlock">
-					<!--
-					<li id="readlistsButton2" title="Read Lists" class="library-item no-grow press-button">
-						<div class="button-wrapper">
-							<span class="fa-solid fa-book-bookmark glyph-dark"></span>
-						</div>
-					</li>
-					<li id="collectionsButton2" title="Collections" class="library-item no-grow press-button">
-						<div class="button-wrapper">
-							<span class="fa-solid fa-box-archive glyph-dark"></span>
-						</div>
-					</li>
-					-->
 					<li id="fullscreenChanger" title="Toggle Fullscreen" class="library-item press-button">
 						<div class="button-wrapper">
 							<span id="fullscreenLabel" class="fa-expand fa-solid glyph-dark"></span>
@@ -353,7 +341,7 @@
 
 	<script>
 		// Set to true to disable per-device and per-platform feature select
-		const fullDebugMode = true;
+		const fullDebugMode = false;
 
 		// Enable for live debug on the main UI
 		const enableDebugPrint = false;
@@ -456,7 +444,7 @@
 				let ratio = window.devicePixelRatio || 1;
 				await Capacitor.Plugins.EdgeToEdge.enable()
 				let result = await Capacitor.Plugins.EdgeToEdge.getInsets();
-
+				debugPrint(JSON.stringify(result, null, 2));
 				document.documentElement.style.setProperty('--mb-android-inset-top', (result.top / ratio) + 'px');
 				document.documentElement.style.setProperty('--mb-android-inset-bottom', (result.bottom / ratio) + 'px');
 				document.documentElement.style.setProperty('--mb-android-inset-left', (result.left / ratio) + 'px');
@@ -471,204 +459,112 @@
 
 
 		//MB Pinch To Zoom
-		// ===== Two-Finger Pinch + Pan for MangaBox =====
 
-		//const page = document.getElementById("touchPanel");
-		//const pageTarget = document.getElementById("readerContainer");
+		const page = document.getElementById("touchPanel");
+		const pageTarget = document.getElementById("readerContainer");
 
 		function getDistance(touches) {
-			if (touches.length === 1) {
-				return (0);
-			}
-			if (touches.length == 2) {
-				const dx = touches[0].clientX - touches[1].clientX;
-				const dy = touches[0].clientY - touches[1].clientY;
-				return Math.sqrt(dx * dx + dy * dy);
-			}
+			const dx = touches[0].clientX - touches[1].clientX;
+			const dy = touches[0].clientY - touches[1].clientY;
+			return Math.sqrt(dx * dx + dy * dy);
 		}
 
 		function getMidpoint(touches) {
-
-			// If there is only one touch, return its coordinates
-			if (touches.length === 1) {
-				return {
-					x: touches[0].clientX,
-					y: touches[0].clientY
-				};
-			}
-
-			// Two or more touches → midpoint between the first two
-			if (touches.length === 2) {
-				return {
-					x: (touches[0].clientX + touches[1].clientX) / 2,
-					y: (touches[0].clientY + touches[1].clientY) / 2
-				};
-			}
+			return {
+				x: (touches[0].clientX + touches[1].clientX) / 2,
+				y: (touches[0].clientY + touches[1].clientY) / 2,
+			};
 		}
 
-
-
-		let gesture = {
-			startDist: 0,
-			startScale: 1,
-			startMid: { x: 0, y: 0 },
-			startContent: { x: 0, y: 0 }
-		};
-
-		/*
-				function createPanResponse(page, pageTarget) {
-					let isDragging = false;
-					let lastX = 0, lastY = 0;
-					let offsetX = 0, offsetY = 0; // accumulated pan
-		
-					page.addEventListener("touchstart", (e) => {
-						if (rd.scale > 1 && e.touches.length === 1) {
-							isDragging = true;
-							lastX = e.touches[0].clientX;
-							lastY = e.touches[0].clientY;
-						}
-					});
-		
-					page.addEventListener("touchmove", (e) => {
-						if (isDragging && e.touches.length === 1) {
-							e.preventDefault(); // stop native scrolling
-							const dx = e.touches[0].clientX - lastX;
-							const dy = e.touches[0].clientY - lastY;
-		
-							offsetX += dx;
-							offsetY += dy;
-		
-							lastX = e.touches[0].clientX;
-							lastY = e.touches[0].clientY;
-		
-							updateTransform();
-						}
-					});
-		
-					page.addEventListener("touchend", (e) => {
-						if (e.touches.length === 0) {
-							isDragging = false;
-						}
-					});
-		
-					function updateTransform() {
-						// clamp offsets so you can’t drag past edges
-						const maxX = (rd.scale - 1) * page.clientWidth / 2;
-						const maxY = (rd.scale - 1) * page.clientHeight / 2;
-		
-						offsetX = Math.min(maxX, Math.max(-maxX, offsetX));
-						offsetY = Math.min(maxY, Math.max(-maxY, offsetY));
-		
-						pageTarget.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${rd.scale})`;
-					}
-				}
-		*/
-
-		function createPinchAndPanResponse(page, pageTarget) {
+		function createPanResponse(page, pageTarget) {
 			let isDragging = false;
+			let lastX = 0, lastY = 0;
+			let offsetX = 0, offsetY = 0; // accumulated pan
 
-			// --------------------------
-			// Touch handlers
-			// --------------------------
+			page.addEventListener("touchstart", (e) => {
+				if (rd.scale > 1 && e.touches.length === 1) {
+					isDragging = true;
+					lastX = e.touches[0].clientX;
+					lastY = e.touches[0].clientY;
+				}
+			});
+
+			page.addEventListener("touchmove", (e) => {
+				if (isDragging && e.touches.length === 1) {
+					e.preventDefault(); // stop native scrolling
+					const dx = e.touches[0].clientX - lastX;
+					const dy = e.touches[0].clientY - lastY;
+
+					offsetX += dx;
+					offsetY += dy;
+
+					lastX = e.touches[0].clientX;
+					lastY = e.touches[0].clientY;
+
+					updateTransform();
+				}
+			});
+
+			page.addEventListener("touchend", (e) => {
+				if (e.touches.length === 0) {
+					isDragging = false;
+				}
+			});
+
+			function updateTransform() {
+				// clamp offsets so you can’t drag past edges
+				const maxX = (rd.scale - 1) * page.clientWidth / 2;
+				const maxY = (rd.scale - 1) * page.clientHeight / 2;
+
+				offsetX = Math.min(maxX, Math.max(-maxX, offsetX));
+				offsetY = Math.min(maxY, Math.max(-maxY, offsetY));
+
+				pageTarget.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${rd.scale})`;
+			}
+
+		}
+		function createPinchResponse(page, pageTarget) {
+
 			page.addEventListener("touchstart", e => {
 				if (e.touches.length === 2) {
-					pageTarget.style.transformOrigin = `0 0`;
 					rd.touchLock = false;
-					e.preventDefault();
 
-					gesture.startDist = getDistance(e.touches);
-					gesture.startScale = rd.scale;
-					gesture.startMid = getMidpoint(e.touches);
+					rd.startDist = getDistance(e.touches);
+					const mid = getMidpoint(e.touches);
 
-					const rectPage = page.getBoundingClientRect();
-					const rectPageTarget = pageTarget.getBoundingClientRect();
-					gesture.startContent.x = (gesture.startMid.x - rectPageTarget.left);
-					gesture.startContent.y = (gesture.startMid.y - rectPageTarget.top);
-				} else if ((rd.scale > 1) && (e.touches.length === 1)) {
-					isDragging = true;
-					e.preventDefault();
-					gesture.startDist = 0;
-					gesture.startScale = rd.scale;
-					gesture.startMid = getMidpoint(e.touches);
-					const rectPage = page.getBoundingClientRect();
-					const rectPageTarget = pageTarget.getBoundingClientRect();
-					gesture.startContent.x = (gesture.startMid.x - rectPageTarget.left);
-					gesture.startContent.y = (gesture.startMid.y - rectPageTarget.top);
+					// convert screen coords into element coords
+					const rect = page.getBoundingClientRect();
+					rd.originX = ((mid.x - rect.left) / rect.width) * 100;
+					rd.originY = ((mid.y - rect.top) / rect.height) * 100;
+
+					pageTarget.style.transformOrigin = `${rd.originX}% ${rd.originY}%`;
 				}
-			}, { passive: false });
+			}, { passive: true });
 
 			page.addEventListener("touchmove", e => {
-
-				if (e.touches.length == 2) {
-					rd.touchLock = false;
-
-					e.preventDefault();
-
+				rd.touchLock = false;
+				if (e.touches.length === 2) {
 					const newDist = getDistance(e.touches);
-					const factor = newDist / gesture.startDist;
-					let newScale = Math.max(1, Math.min(4, gesture.startScale * factor));
-
-					const newMid = getMidpoint(e.touches);
-
-					const rectPage = page.getBoundingClientRect();
-					const rectPageTarget = pageTarget.getBoundingClientRect();
-
-
-					let calcOffsetX = newMid.x - gesture.startContent.x * newScale / gesture.startScale;
-					let calcOffsetY = newMid.y - gesture.startContent.y * newScale / gesture.startScale;
-
-					let newOffsetX = Math.max(Math.min(0, calcOffsetX), rectPage.width - rectPage.width * newScale)
-					let newOffsetY = Math.max(Math.min(0, calcOffsetY), rectPage.height - rectPage.height * newScale)
-
-					rd.scale = newScale;
-					rd.offsetX = newOffsetX;
-					rd.offsetY = newOffsetY;
-
-					pageTarget.style.transform = `translate(${rd.offsetX}px, ${rd.offsetY}px) scale(${rd.scale})`;
-				} else if (isDragging && e.touches.length === 1) {
-					e.preventDefault();
-
-					const newMid = getMidpoint(e.touches);
-
-					const rectPage = page.getBoundingClientRect();
-					const rectPageTarget = pageTarget.getBoundingClientRect();
-
-					let calcOffsetX = newMid.x - gesture.startContent.x;
-					let calcOffsetY = newMid.y - gesture.startContent.y;
-
-					let newOffsetX = Math.max(Math.min(0, calcOffsetX), rectPage.width - rectPage.width * rd.scale)
-					let newOffsetY = Math.max(Math.min(0, calcOffsetY), rectPage.height - rectPage.height * rd.scale)
-
-					rd.offsetX = newOffsetX;
-					rd.offsetY = newOffsetY;
-
-					pageTarget.style.transform = `translate(${rd.offsetX}px, ${rd.offsetY}px) scale(${rd.scale})`;
+					const factor = newDist / rd.startDist;
+					const newScale = Math.min(Math.max(1, rd.scale * factor), 4);
+					pageTarget.style.transform = `scale(${newScale})`;
 				}
-			}, { passive: false });
+			}, { passive: true });
 
 			page.addEventListener("touchend", e => {
-				if (e.touches.length == 1) {
-					rd.touchLock = false;
-					if (rd.scale > 1) {
-						isDragging = true;
-						gesture.startDist = 0;
-						gesture.startScale = rd.scale;
-						gesture.startMid = getMidpoint(e.touches);
-						const rectPage = page.getBoundingClientRect();
-						const rectPageTarget = pageTarget.getBoundingClientRect();
-						gesture.startContent.x = (gesture.startMid.x - rectPageTarget.left);
-						gesture.startContent.y = (gesture.startMid.y - rectPageTarget.top);
-					}
-				}
-				else if (isDragging && (e.touches.length == 0)) {
-					isDragging = false;
+				rd.touchLock = false;
+				if (e.touches.length < 2) {
+					const matrix = new WebKitCSSMatrix(getComputedStyle(pageTarget).transform);
+					rd.scale = matrix.a;
 				}
 			});
 		}
 
-		createPinchAndPanResponse(touchPanel, readerContainer);
-		createPinchAndPanResponse(webtoonContainer, readerContainer);
+		createPinchResponse(touchPanel, readerContainer);
+		createPinchResponse(webtoonContainer, readerContainer);
 
+		createPanResponse(touchPanel, readerContainer);
+		createPanResponse(webtoonContainer, readerContainer);
 
 		//MB Manage Electron titlebar
 
@@ -1255,74 +1151,46 @@
 				navigateTo(`#offlinebooks`);
 			});
 		}
-		/*
-			readlistsButton2.addEventListener('click', () => {
-				navigateTo(`#readlists`);
-			});
-						collectionsButton2.addEventListener('click', () => {
-				navigateTo(`#collections`);
-			});
-*/
+
 		logOut.addEventListener('click', async () => {
-			let currentUser = await callAPI(null, '/api/v2/users/me')
-			let dialogText = `
-			<div style="width:100%; text-align:left; display: inline-flex; align-items: center; gap: 10px;">
-				<span class="fa-solid fa-user"></span><span>${currentUser.email}</span>
-			</div>
-			<div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--mb-accent); width:100%; text-align:left; display: inline-flex; align-items: center; gap: 10px;">
-				<span class="fa-solid fa-server"></span><span style="word-break: break-all;">${mb.baseUrl}</span>
-			</div>
-			`
-			showModal('', true, dialogText,
-				[
-					{
-						label: 'Logout', runfunction: async () => {
-							closeModal();
-							navigateTo('#dashboard');
-							await executeFaderGradient(1);
 
-							try {
-								if (mb.baseUrl) {
-									await fetch(`${mb.baseUrl}/api/logout`, {
-										method: 'POST',
-										credentials: 'include',
-										headers: {
-											'X-Requested-With': 'XMLHttpRequest',
-											'skip_zrok_interstitial': '1',
-										},
-									});
-								}
-							} catch (error) {
-								console.warn('Logout API call failed:', error);
-								// We continue cleanup anyway
-							}
+			navigateTo('#dashboard');
+			await executeFaderGradient(1);
+
+			try {
+				if (mb.baseUrl) {
+					await fetch(`${mb.baseUrl}/api/logout`, {
+						method: 'POST',
+						credentials: 'include',
+						headers: {
+							'X-Requested-With': 'XMLHttpRequest',
+							'skip_zrok_interstitial': '1',
+						},
+					});
+				}
+			} catch (error) {
+				console.warn('Logout API call failed:', error);
+				// We continue cleanup anyway
+			}
 
 
-							if (isElectron) await deleteToken();
+			if (isElectron) await deleteToken();
 
-							//sectionHide(stickyContainer);
-							//sectionShow(blanker);
+			//sectionHide(stickyContainer);
+			//sectionShow(blanker);
 
-							Object.keys(localStorage).forEach(key => {
-								if (key.startsWith("c_")) {
-									localStorage.removeItem(key);
-								}
-							});
+			Object.keys(localStorage).forEach(key => {
+				if (key.startsWith("c_")) {
+					localStorage.removeItem(key);
+				}
+			});
 
-							await clearIndexedDB();
-							localStorage.removeItem("sessionValid");
+			await clearIndexedDB();
+			localStorage.removeItem("sessionValid");
 
-							mainLoader.classList.add('hidden');
+			mainLoader.classList.add('hidden');
 
-							systemRestart();
-
-						}, high: true
-					},
-					{
-						label: 'Cancel', runfunction: closeModal, high: false
-					}
-				]
-			);
+			systemRestart();
 		});
 
 		searchInput.addEventListener('keydown', (event) => {
@@ -2660,9 +2528,9 @@
 		// Function that fetches the libraries list, sort it by name, then calls displayLibraries to show the fetched libraries
 		async function fetchLibraries() {
 
+
 			const libraries = await callAPI('c_libraries', '/api/v1/libraries');
 			libraries.sort((a, b) => a.name.localeCompare(b.name));
-
 			await displayLibraries(libraries);
 
 			await updateSizer(libraries)
@@ -3046,106 +2914,7 @@
 			}
 		}
 
-		async function buildCollectionsItem(item, serie, target) {
-			buildContainerItem(item, serie, target, 'collections', 'seriesIds', 'fa-layer-group')
-		}
 
-		async function buildReadlistsItem(item, serie, target) {
-			buildContainerItem(item, serie, target, 'readlists', 'bookIds', 'fa-book')
-		}
-
-		async function buildContainerItem(item, serie, target, container, items, icon) {
-			
-			const dateString = serie.lastModifiedDate ?
-					new Intl.DateTimeFormat('en-GB', {
-						day: '2-digit',
-						month: 'short',
-						year: '2-digit'
-					}).format(new Date(serie.lastModifiedDate))
-					: '';
-console.log(dateString)
-			item.childNodes[0]?.remove();
-
-			item.title = 'Open Container';
-
-			const seriesItem = addItem('div', {
-				className: 'series-item'
-			});
-
-			const seriesTitle = addItem('div', {
-				innerHTML: `
-								<div class="title-row data-row top-row">
-									<div style="flex-grow:1" class="series-title">${preventHyphenBreaks(serie.name)}</div>
-								</div>`
-			});
-
-			const thumbnailWrapper = addItem('div', {
-				className: 'thumbnail-wrapper'
-			});
-
-			const seriesThumbnail = addItem('img', {
-				className: 'series-thumbnail hidden',
-				src: 'transparent.png',
-				lazySrc: `${mb.baseUrl}/api/v1/${container}/${serie.id}/thumbnail`,
-				alt: serie.name
-			});
-
-			addLazyLoading(seriesThumbnail);
-
-			const seriesFader = addItem('div', {
-				className: 'series-fader'
-			});
-
-			const seriesOverlay = addItem('div', {
-				className: 'series-overlay'
-			});
-
-
-			const timeLabel = addItem('span', {
-					innerHTML: `<span class='${mb.darkTheme ? 'fa-solid' : 'fa-regular'} fa-clock glyph-dark'></span>&nbsp;${dateString}`
-				});
-
-			// Fetch and display the number of books and alternate title
-			const bookCount = serie[items].length;
-
-			const infoRow = addItem('div', {
-				className: 'data-row info-row'
-			});
-
-			const booksLabel = addItem('span', {
-				innerHTML: `<span class='fa-solid ${icon} glyph-dark'></span>&nbsp;${bookCount}`
-			});
-
-			item.mbSeriesTitle = serie.name ?? '';
-
-			item.mbBooksCount = serie[items].length;
-
-			seriesItem.append(
-				thumbnailWrapper,
-				seriesTitle,
-				infoRow,
-			);
-			thumbnailWrapper.append(
-				seriesThumbnail,
-				seriesFader,
-				seriesOverlay,
-			);
-
-			infoRow.append(
-				timeLabel,
-				booksLabel
-			);
-
-			seriesItem.classList.add('touch-scaler')
-
-			addTouchScaler(seriesItem, () => {
-				if (target?.binName) mb.dashboardBin = target.binName;
-				navigateTo(`#${container}item?item_id=${serie.id}`)
-			});
-
-			item.append(seriesItem)
-
-		}
 
 		// Creates and populates the series grid with the data from the series array.
 		async function displaySeriesOLD(series, target) {
@@ -3251,7 +3020,7 @@ console.log(dateString)
 				}
 
 				series.forEach(async (serie) => {
-					console.log(serie);
+
 					const seriesContainer = addItem('div', {
 						className: 'series-container collector', //XXX was ending with , 'fade-in');
 						id: serie.id,
@@ -3267,49 +3036,6 @@ console.log(dateString)
 			}
 		}
 
-		async function displayReadlists(series, target) {
-
-			// TODO Ripulire questa parte che in parte viene da sopra
-			while (target.firstChild) {
-				target.removeChild(target.firstChild);
-			}
-
-			series.forEach(async (serie) => {
-				console.log(serie);
-				const seriesContainer = addItem('div', {
-					className: 'series-container collector', //XXX was ending with , 'fade-in');
-					id: serie.id,
-				});
-
-				buildReadlistsItem(seriesContainer, serie, target);
-
-				target.append(seriesContainer);
-
-			});
-			sectionShow(target);
-		}
-
-		async function displayCollections(series, target) {
-
-			// TODO Ripulire questa parte che in parte viene da sopra
-			while (target.firstChild) {
-				target.removeChild(target.firstChild);
-			}
-
-			series.forEach(async (serie) => {
-				console.log(serie);
-				const seriesContainer = addItem('div', {
-					className: 'series-container collector', //XXX was ending with , 'fade-in');
-					id: serie.id,
-				});
-
-				buildCollectionsItem(seriesContainer, serie, target);
-
-				target.append(seriesContainer);
-
-			});
-			sectionShow(target);
-		}
 
 		// Function that fetches all the series list within a library, sorted by name, then calls displaySeries to show the fetched series
 		async function fetchAllSeries(libraryId) {
@@ -3357,36 +3083,6 @@ console.log(dateString)
 			await displaySeries(allSeries, seriesGrid, seriesId, libraryId);
 			//focusItem(seriesId || 'top');
 			//TODO Move here the logic that enables the library options buttons?
-		}
-
-		async function openReadlists() {
-			libraryHighlight('readlistsButton', false);		// Triggers and manages the library menu
-			//libraryHighlight('readlistsButton2', false);		// Triggers and manages the library menu
-			//const allSeries = await fetchAllSeries(libraryId);		// Updates the series within the library
-
-			//await displaySeries(allSeries, seriesGrid, seriesId, libraryId);
-			const readlistsPage = await callAPI(`c_readlists`,
-				`/api/v1/readlists?page=0&unpaged=true&sort=metadata.titleSort,asc`,
-				'GET'
-			);
-			readlists = readlistsPage?.content || [];
-			console.log(readlists)
-			displayReadlists(readlists, seriesGrid);
-		}
-
-		async function openCollections() {
-			libraryHighlight('collectionsButton', false);		// Triggers and manages the library menu
-			//libraryHighlight('collectionsButton2', false);		// Triggers and manages the library menu
-			//const allSeries = await fetchAllSeries(libraryId);		// Updates the series within the library
-
-			//await displaySeries(allSeries, seriesGrid, seriesId, libraryId);
-			const collectionsPage = await callAPI(`c_collections`,
-				`/api/v1/collections?page=0&unpaged=true&sort=metadata.titleSort,asc`,
-				'GET'
-			);
-			collections = collectionsPage?.content || [];
-			console.log(collections)
-			displayCollections(collections, seriesGrid);
 		}
 
 		const menuClassUp = 'fa-caret-up';
@@ -3482,7 +3178,6 @@ console.log(dateString)
 
 		function buildLibraryItem(itemId, libraryName, imagePath = null) {
 			const isLib = (imagePath == null);
-			const isFA = imagePath?.startsWith("fa-");
 
 			const listItem = addItem('li', {
 				id: itemId,
@@ -3501,18 +3196,13 @@ console.log(dateString)
 				? `library-thumbnails/${libraryName}.svg`
 				: imagePath);
 
+			const libraryThumbnail = addItem('img', {
+				className: 'library-thumbnail',
+				src: imageSrc,
+				alt: isLib ? `${libraryName} Cover` : libraryName,
+			})
 
-			const libraryThumbnail = isFA ?
-				addItem('i', {
-					className: `fa-solid ${imagePath} glyph-dark libglyph`,
-				}) :
-				addItem('img', {
-					className: 'library-thumbnail',
-					src: imageSrc,
-					alt: isLib ? `${libraryName} Cover` : libraryName,
-				})
-
-			if (isLib && !isFA) {
+			if (isLib) {
 				libraryThumbnail.onerror = () => {
 					libraryThumbnail.onerror = null;
 					libraryThumbnail.src = `library-letters/${transliterate(libraryName.charAt(0)).charAt(0).toUpperCase()}.png`
@@ -3726,34 +3416,6 @@ console.log(dateString)
 				navigateTo('#dashboard');
 			});
 
-			let readlists = buildLibraryItem('readlistsButton', 'Read Lists', 'library-symbols/readlists3d.png')
-			librariesList.append(readlists);
-			readlistsButton.addEventListener('click', () => {
-				navigateTo('#readlists');
-			});
-
-			let readlistsAPI = callAPI(`c_readlists`,
-				`/api/v1/readlists?page=0&unpaged=true&sort=metadata.titleSort,asc`,
-				'GET'
-			).then((res) => {
-				if (res.content.length == 0) readlistsButton.style.display = 'none';
-			});
-
-			let collections = buildLibraryItem('collectionsButton', 'Collections', 'library-symbols/collections3d.png')
-			librariesList.append(collections);
-			collectionsButton.addEventListener('click', () => {
-				navigateTo('#collections');
-			});
-
-			let collectionsAPI = callAPI(`c_collections`,
-				`/api/v1/collections?page=0&unpaged=true&sort=metadata.titleSort,asc`,
-				'GET'
-			).then((res) => {
-				console.log("XXXXXX")
-				console.log(res.content.length)
-				if (res.content.length == 0) collectionsButton.style.display = 'none';
-			});
-
 			Array.from(libraries).forEach((library, index) => {
 				const listItem = buildLibraryItem(library.id, library.name);
 
@@ -3831,7 +3493,6 @@ console.log(dateString)
 				librariesList.append(listItem);
 			});
 
-
 		}
 
 		function getAltTitles(serie) {
@@ -3866,42 +3527,33 @@ console.log(dateString)
 		}
 
 
-		async function displayHeader(serie, isReadlist) {
-			const altTitle = isReadlist ? null : getAltTitles(serie);
+		async function displayHeader(serie) {
+			const altTitle = getAltTitles(serie);
 
-			const title = isReadlist ? serie.name : serie.metadata.title;
-			const books = isReadlist ? serie.bookIds.length : serie.booksCount;
-			const summaryData = isReadlist ? serie.summary : serie.metadata.summary;
+			const summary = (serie.metadata.summary != "")
+				? serie.metadata.summary.replace(/\n/g, '<br>')
+				: (serie.booksMetadata.summary != ""
+					? "<u>Summary from book " + serie.booksMetadata.summaryNumber + "</u><br>" + serie.booksMetadata.summary.replace(/\n/g, '<br>')
+					: ""
+				)
 
-			const summary = (isReadlist ?
-				summaryData :
-				(serie.metadata.summary != "")
-					? serie.metadata.summary.replace(/\n/g, '<br>')
-					: (serie.booksMetadata.summary != ""
-						? "<u>Summary from book " + serie.booksMetadata.summaryNumber + "</u><br>" + serie.booksMetadata.summary.replace(/\n/g, '<br>')
-						: ""
-					)
-			)
-
-			const creditString = isReadlist ? '' : (altTitle.story == altTitle.art
+			const creditString = altTitle.story == altTitle.art
 				? `Story and art by <a class="red search-trigger" href="javascript:navigateTo('#search?search_string=${altTitle.story.toLowerCase()}');">${altTitle.story}</a>`
-				: `Story by <a class="red search-trigger" href="javascript:navigateTo('#search?search_string=${altTitle.story.toLowerCase()}');">${altTitle.story}</a>, art by <a class="red search-trigger" href="javascript:navigateTo('#search?search_string=${altTitle.art.toLowerCase()}');">${altTitle.art}</a>`
-			)
+				: `Story by <a class="red search-trigger" href="javascript:navigateTo('#search?search_string=${altTitle.story.toLowerCase()}');">${altTitle.story}</a>, art by <a class="red search-trigger" href="javascript:navigateTo('#search?search_string=${altTitle.art.toLowerCase()}');">${altTitle.art}</a>`;
 
-			const thumbURL = isReadlist ? `${mb.baseUrl}/api/v1/readlists/${serie.id}/thumbnail` : `${mb.baseUrl}/api/v1/series/${serie.id}/thumbnail`
 			seriesHeader.innerHTML = `
 			<div class="header-pic-container">
 				<div class="thumbnail-wrapper">
-					<img id="seriesHeaderThumbnail" src="${thumbURL}" class="header-pic">
+					<img id="seriesHeaderThumbnail" src="${mb.baseUrl}/api/v1/series/${serie.id}/thumbnail" class="header-pic">
 				</div>
 			</div>
 			<div class="header-title">
 				<span class="title">
-				${title}
+				${serie.metadata.title}
 				${serie.metadata?.language ? `<img width="20px" height="20px" style="margin-left:15px; margin-top:2px; vertical-align: top;" src="flags/${serie.metadata.language}.svg">` : ''}
 				</span>
 				<span class="notes">
-					<a class="red search-trigger" href="javascript:navigateTo('#search?search_string=y:${altTitle?.time}');">${altTitle?.time ?? ''}</a> (${books} ${books == 1 ? "book" : "books"}) ${isReadlist ? '' : ' - ' + creditString}</span>
+					<a class="red search-trigger" href="javascript:navigateTo('#search?search_string=y:${altTitle.time}');">${altTitle.time}</a> (${serie.booksCount} ${serie.booksCount == 1 ? "book" : "books"}) - ${creditString}</span>
 			</div>
 			<div id="bookScrollBox" class="header-summary scrollbox" data-scroll-direction="vertical">
 				<div class="scrollbox-content">${summary}</div>
@@ -3914,7 +3566,7 @@ console.log(dateString)
 			seriesHeaderThumbnail.src = await fetchMedia(seriesHeaderThumbnail.src);
 			createCustomScrollbar(bookScrollBox);
 			seriesMiniHeader.innerHTML = `
-				<span class="mini-title">${title}</span>
+				<span class="mini-title">${serie.metadata.title}</span>
 			`
 		}
 
@@ -4218,7 +3870,7 @@ console.log(dateString)
 				secondRow
 			);
 
-			if (format == 'full') {
+			if (format == 'full'){
 				booksItem.append(thirdRow)
 			}
 
@@ -4500,40 +4152,6 @@ console.log(dateString)
 			displayBooks(books, booksGrid, 'longname', bookId);
 		}
 
-		async function openReadlist(itemId) {
-			let books = [];
-			const seriesData = await callAPI(`c_readlists${itemId}`, `/api/v1/readlists/${itemId}`);
-			const booksData = (await callAPI(`c_bookslist${itemId}`,
-				`/api/v1/readlists/${itemId}/books?page=0&unpaged=true&sort=metadata.numberSort,asc`,
-				'GET'
-			));
-
-			books = booksData?.content || [];
-
-			await libraryHighlight('readlistsButton', false);
-			//await libraryHighlight('readlistsButton2', false);
-			if (seriesData != null) displayHeader(seriesData, true);
-			displayBooks(books, booksGrid, 'full');
-		}
-
-		async function openCollection(itemId) {
-			let contents = [];
-			const itemData = await callAPI(`c_collections${itemId}`, `/api/v1/collections/${itemId}`);
-			console.log(itemData)
-			const contentsData = (await callAPI(`c_serieslist${itemId}`,
-				`/api/v1/collections/${itemId}/series?page=0&unpaged=true&sort=metadata.numberSort,asc`,
-				'GET'
-			));
-			console.log(contentsData)
-
-			contents = contentsData?.content || [];
-
-			await libraryHighlight('collectionsButton', false);
-			//await libraryHighlight('collectionsButton2', false);
-			if (itemData != null) displayHeader(itemData, true);
-			displaySeries(contents, seriesGrid, null, false);
-		}
-
 		async function openOfflineBooks(bookId) {
 			libraryHighlight('offlineLibrary', false);
 
@@ -4698,8 +4316,6 @@ console.log(dateString)
 			startDist: 0,
 			originX: 0,
 			originY: 0,
-			offsetX: 0,
-			offsetY: 0,
 			touchLock: 0
 		};
 
@@ -4751,17 +4367,8 @@ console.log(dateString)
 			rd.originX = 0;
 			rd.originY = 0;
 			rd.touchLock = 0;
-			rd.offsetX = 0;
-			rd.offsetY = 0;
 
 			if (rd.webtoon) scaleWebtoon(0); else scaleReader(0);
-
-			gesture = {
-				startDist: 0,
-				startScale: 1,
-				startMid: { x: 0, y: 0 },
-				startContent: { x: 0, y: 0 }
-			};
 
 			//readerViewer.innerHTML = '';
 			thumbStripShowHide();
@@ -5005,7 +4612,7 @@ console.log(dateString)
 			readerProgress.style.width = `${progressPercent}%`;
 			readerProgress.style.float = rd.rtl ? 'right' : 'left';
 
-			[rd.currentPage, readerPage.innerHTML] = getPageFromSpread(currentSpreadIndex);
+			[rd.currentPage, readerPage.innerText] = getPageFromSpread(currentSpreadIndex);
 
 			readerPage.style.left = rd.rtl
 				? `min(max(0px, calc(${100 - progressPercent}% - ${readerPage.clientWidth * 0.5}px)), calc(100% - ${readerPage.clientWidth}px))`
@@ -5458,49 +5065,6 @@ console.log(dateString)
 
 			});
 		}
-		function computeReaderMaxRatio(serverPageData, spreadThreshold = 1.5) {
-			if (!serverPageData || serverPageData.length === 0) return 1;
-
-			// compute aspect ratios
-			const ratios = serverPageData.map(item => item.width / item.height);
-
-			// decide orientation by majority
-			const landscapeCount = ratios.filter(r => r > 1).length;
-			const isLandscape = landscapeCount > ratios.length / 2;
-
-			// estimate typical single page ratio:
-			// - for landscape: median of ratios > 1
-			// - for portrait: median of ratios < 1
-			let candidate;
-			if (isLandscape) {
-				const landscapeSingles = ratios.filter(r => r > 1);
-				candidate = median(landscapeSingles.length ? landscapeSingles : ratios);
-			} else {
-				const portraitSingles = ratios.filter(r => r < 1);
-				candidate = median(portraitSingles.length ? portraitSingles : ratios);
-			}
-
-			// fallback guard
-			if (!isFinite(candidate) || candidate <= 0) candidate = median(ratios);
-
-			// now for each page: if page looks like a single (ratio close to typical_single),
-			// treat it as half of a spread => use 2 * ratio. Otherwise use ratio as-is.
-			const adjusted = ratios.map(r => {
-				const normalized = r / candidate;
-				return (normalized < spreadThreshold) ? (2 * r) : r;
-			});
-
-			// average
-			const sum = adjusted.reduce((s, v) => s + v, 0);
-			return sum / adjusted.length;
-		}
-
-		function median(arr) {
-			if (!arr || arr.length === 0) return NaN;
-			const a = Array.from(arr).sort((x, y) => x - y);
-			const m = Math.floor(a.length / 2);
-			return (a.length % 2 === 1) ? a[m] : (a[m - 1] + a[m]) / 2;
-		}
 
 		// Master function that builds all the pages slots for the book spreads
 		async function fetchPages(bookId, noCover, noWhitePage, coverIsPageOne, offline) {
@@ -5510,15 +5074,9 @@ console.log(dateString)
 			// Get the pages data structure from server for the current book
 			const serverPageData = useOfflineCopy ? offline.pagesMetadata : await callAPI(`c_bookpages${bookId}`, `/api/v1/books/${bookId}/pages`);
 
-
 			// mb.readerMaxRatioOLD = Math.max(...dataOut.map(item => (item.isCover || item.isDoubleSpread) ? 0 : ((item.width / item.height) < 1 ? 2 * item.width / item.height : 2 * item.width / item.height)));
-			/*
 			mb.readerMaxRatio = serverPageData.map(item => ((item.width / item.height) < 1 ? 2 * item.width / item.height : item.width / item.height))
 				.reduce((sum, ratio) => sum + ratio, 0) / serverPageData.length;
-			*/
-
-			mb.readerMaxRatio = computeReaderMaxRatio(serverPageData, 1.5);
-
 			// readerViewer.style.height='100vh';
 			readerViewer.style.height = `calc(min(${100 / (0.5 * mb.readerMaxRatio)}vw, var(--mb-reader-scale) / 100 * 100vh))`;
 			//readerViewer.style.width=`calc(${mb.readerMaxRatio} * 100vh)`;
@@ -5538,7 +5096,7 @@ console.log(dateString)
 				isCover: noCover ? false : page.number == 1,
 				isOrphan: noWhitePage && (page.number == 2),
 				isCurrent: page.number == rd.currentPage,
-				isDoubleSpread: ((page.width / page.height) > 1.5 * (mb.readerMaxRatio * 0.5)),
+				isDoubleSpread: page.width > page.height,
 				size: page.sizeBytes
 			}));
 
@@ -5582,7 +5140,7 @@ console.log(dateString)
 			while (i_page < pageData.length) {
 				let spreadObject = null;
 
-				pageNum1 = realPage == firstNonCover ? (coverIsPageOne ? 2 : '') : realPage;
+				pageNum1 = realPage == firstNonCover ? (coverIsPageOne ? 2 : ' ') : realPage;
 				pageNum2 = realPage == firstNonCover ? (coverIsPageOne ? 3 : realPage) : realPage + 1
 				pageCover = pageData[i_page].isCover;
 
@@ -5590,7 +5148,7 @@ console.log(dateString)
 					// Element is a cover
 					const cover = buildPageObject(pageData[i_page]);
 					const hidden = buildPageObject('hidden');
-					spreadObject = buildSpreadObject('cover-page', pageTable(hidden, cover), pageData[i_page].pageNum, pageTable(coverIsPageOne ? '' : '', coverIsPageOne ? 1 : ''));
+					spreadObject = buildSpreadObject('cover-page', pageTable(hidden, cover), pageData[i_page].pageNum, pageTable(coverIsPageOne ? ' ' : ' ', coverIsPageOne ? 1 : ' '));
 				}
 				else if (pageData[i_page].isDoubleSpread) {
 					// Element is a double spread, generate second set of images
@@ -5603,7 +5161,7 @@ console.log(dateString)
 					// Element is last single page, so back cover
 					const cover = buildPageObject(pageData[i_page]);
 					const hidden = buildPageObject('hidden');
-					spreadObject = buildSpreadObject('back-cover', pageTable(cover, hidden), pageData[i_page].pageNum, pageTable(realPage, ''));
+					spreadObject = buildSpreadObject('back-cover', pageTable(cover, hidden), pageData[i_page].pageNum, pageTable(realPage, ' '));
 					rd.realLastPage = realPage;
 				}
 				else if (((i_page + 1 < pageData.length) && (pageData[i_page + 1].isDoubleSpread)) || (pageData[i_page].isOrphan)) {
@@ -5931,12 +5489,7 @@ console.log(dateString)
 			const lastSpread = (twoPages && (index == (spreadsTotal() - 1)));
 
 			const currentPage = lastSpread ? spreadObject.spreadRefPage + 1 : spreadObject.spreadRefPage;
-
-			console.log(spreadObject.pageNumL)
-			let pageNumText = rd.webtoon ? spreadObject.pageNumL : spreadObject.pageNumL + ' ' + spreadObject.pageNumR;
-			pageNumText = pageNumText.trim().replace(' ', '￨')
-
-			//pageNumText = pageNumText.trim().replace(' ', '<span style="width: 10px; border-right:1px solid white">&nbsp;</span><span style="width:10px;">&nbsp;</span>')
+			const pageNumText = rd.webtoon ? spreadObject.pageNumL : spreadObject.pageNumL + ' ' + spreadObject.pageNumR;
 
 			const out = [currentPage, pageNumText];
 
@@ -6726,28 +6279,6 @@ console.log(dateString)
 					setIncognito(false);
 					await openSeries(params.get('library_id'), params.get('series_id'), params.get('book_id'));
 					break;
-				case 'readlists':
-					mb.dashboardBin = '';
-					searchInput.value = '';
-					setIncognito(false);
-					await openReadlists();
-					break;
-				case 'readlistsitem':
-					searchInput.value = '';
-					setIncognito(false);
-					await openReadlist(params.get('item_id'));
-					break;
-				case 'collections':
-					mb.dashboardBin = '';
-					searchInput.value = '';
-					setIncognito(false);
-					await openCollections();
-					break;
-				case 'collectionsitem':
-					searchInput.value = '';
-					setIncognito(false);
-					await openCollection(params.get('item_id'));
-					break;
 				case 'search':
 					setIncognito(false);
 					searchInput.value = params.get('search_string');
@@ -6860,7 +6391,7 @@ console.log(dateString)
 
 			function handleTouchStart(event) {
 				if (getDerivedScale() > 1.01) return;
-				debugPrint("HandleTouchStart noscale")
+
 				if (event.touches.length > 1) {
 					item.SingleTouch = false; // Multiple touches: ignore for swipe
 					return;
@@ -6871,8 +6402,8 @@ console.log(dateString)
 			}
 
 			function handleTouchMove(event) {
-				rd.touchLock = false;
 				if (getDerivedScale() > 1.01 || !item.SingleTouch) return;
+
 				const touchEndX = event.touches[0].clientX;
 				const touchEndY = event.touches[0].clientY;
 

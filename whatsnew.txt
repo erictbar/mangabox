@@ -1,3 +1,11 @@
+Main UI
+- Support for viewing read lists and collections
+
+Reader UI
+- Added a vertical separator for page numbers in the seek bar
+
+Build
+- Updated website
+
 Fixes
-- Fixed blank libraries when no filters are applied
-- Fixed UI issue when logging out of server
+- 
