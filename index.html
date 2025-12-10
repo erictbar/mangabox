@@ -81,7 +81,11 @@
 						<div id="searchIcon" class="button-wrapper">
 							<span class="fa-solid fa-magnifying-glass glyph-dark"></span>
 						</div>
-						<input id="searchInput" type="text" class="search-input" placeholder="Search...">
+						<!--<span id="clearSearchBtn" class="clear-btn fa-solid fa-xmark"></span>-->
+						<div id="clearSearchBtn" class="clear-btn mini-buttons-2 press-flat-button" onclick="jumpBookDetailsNext()">
+							<span class="x-btn lib-override fa-solid fa-xmark"></span>
+						</div>
+						<input id="searchInput" type="search" autocomplete="off" role="searchbox" class="search-input" placeholder="Search...">
 					</li>
 					<li id="logOut" title="Logout" class="library-item press-button">
 						<div class="button-wrapper">
@@ -353,7 +357,7 @@
 
 	<script>
 		// Set to true to disable per-device and per-platform feature select
-		const fullDebugMode = true;
+		const fullDebugMode = false;
 
 		// Enable for live debug on the main UI
 		const enableDebugPrint = false;
@@ -976,6 +980,19 @@
 			return requestTable
 		}
 
+		function buildRequestMedia(authToken, method, body) {
+			const requestTable = {
+				method: method,
+				...(!isElectron && { credentials: 'include' }),
+				headers: {
+					'X-Requested-With': 'XMLHttpRequest',
+					'skip_zrok_interstitial': '1',
+					...(isElectron && { 'X-Auth-Token': authToken })
+				},
+			}
+			return requestTable
+		}
+
 		function cacheKeyFromUrl(url) {
 			return 'cache_' + url.replace(/[^a-z0-9]/gi, '_');
 		}
@@ -1265,6 +1282,9 @@
 */
 		logOut.addEventListener('click', async () => {
 			let currentUser = await callAPI(null, '/api/v2/users/me')
+			if (currentUser == null) currentUser = {
+				email: 'Offline'
+			}
 			let dialogText = `
 			<div style="width:100%; text-align:left; display: inline-flex; align-items: center; gap: 10px;">
 				<span class="fa-solid fa-user"></span><span>${currentUser.email}</span>
@@ -1324,6 +1344,40 @@
 				]
 			);
 		});
+
+		function updateSearchX() {
+			clearSearchBtn.style.display = searchInput.value ? '' : 'none';
+			//searchInput.style.paddingRight = searchInput.value ? '30px' : '10px';
+		}
+
+		function clearSearchField() {
+			searchInput.value = '';
+			updateSearchX();
+		}
+
+		clearSearchBtn.addEventListener('pointerdown', e => {
+			e.stopPropagation();
+		});
+
+		clearSearchBtn.addEventListener('pointerup', e => {
+			e.stopPropagation();
+		});
+
+		searchInput.addEventListener('input', () => {
+			updateSearchX()
+		});
+
+		searchInput.addEventListener('click', () => {
+			updateSearchX()
+		});
+
+		clearSearchBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+
+			clearSearchField();
+			searchInput.focus();
+		});
+
 
 		searchInput.addEventListener('keydown', (event) => {
 			if (event.key === 'Enter') {
@@ -2547,7 +2601,7 @@
 			}
 
 			try {
-				const response = await fetch(url, buildRequest(mb.authToken, 'GET', null));
+				const response = await fetch(url, buildRequestMedia(mb.authToken, 'GET', null));
 
 				if (response.ok) {
 					const blob = await response.blob();
@@ -2648,7 +2702,7 @@
 			document.documentElement.style.setProperty('--mb-num-buttons', rightBlockButtons - 1);
 
 			const libNum = libraries.length;
-			const mainLibAndMenu = margin + libLargeSize + 40;
+			const mainLibAndMenu = margin + 3 * libLargeSize + 40;
 			mb.libSizer.large = mainLibAndMenu + libNum * (libLargeSize + gapSize);
 			mb.libSizer.medium = mainLibAndMenu + libNum * (libSmallSize + gapSize);
 			mb.libSizer.rightmin = margin + rightBlockButtons * (libSmallSize + gapSize) + searchFieldSize + gapSize;
@@ -2704,7 +2758,7 @@
 				if (getComputedStyle(item).opacity == 0) return;
 				mb.pointerItem = item
 			});
-			item.addEventListener('pointerup', () => {
+			item.addEventListener('pointerup', (event) => {
 				event.stopPropagation();
 
 				if (mb.pointerItem != item) {
@@ -3055,15 +3109,15 @@
 		}
 
 		async function buildContainerItem(item, serie, target, container, items, icon) {
-			
+
 			const dateString = serie.lastModifiedDate ?
-					new Intl.DateTimeFormat('en-GB', {
-						day: '2-digit',
-						month: 'short',
-						year: '2-digit'
-					}).format(new Date(serie.lastModifiedDate))
-					: '';
-console.log(dateString)
+				new Intl.DateTimeFormat('en-GB', {
+					day: '2-digit',
+					month: 'short',
+					year: '2-digit'
+				}).format(new Date(serie.lastModifiedDate))
+				: '';
+
 			item.childNodes[0]?.remove();
 
 			item.title = 'Open Container';
@@ -3102,8 +3156,8 @@ console.log(dateString)
 
 
 			const timeLabel = addItem('span', {
-					innerHTML: `<span class='${mb.darkTheme ? 'fa-solid' : 'fa-regular'} fa-clock glyph-dark'></span>&nbsp;${dateString}`
-				});
+				innerHTML: `<span class='${mb.darkTheme ? 'fa-solid' : 'fa-regular'} fa-clock glyph-dark'></span>&nbsp;${dateString}`
+			});
 
 			// Fetch and display the number of books and alternate title
 			const bookCount = serie[items].length;
@@ -3251,7 +3305,6 @@ console.log(dateString)
 				}
 
 				series.forEach(async (serie) => {
-					console.log(serie);
 					const seriesContainer = addItem('div', {
 						className: 'series-container collector', //XXX was ending with , 'fade-in');
 						id: serie.id,
@@ -3275,7 +3328,6 @@ console.log(dateString)
 			}
 
 			series.forEach(async (serie) => {
-				console.log(serie);
 				const seriesContainer = addItem('div', {
 					className: 'series-container collector', //XXX was ending with , 'fade-in');
 					id: serie.id,
@@ -3297,7 +3349,6 @@ console.log(dateString)
 			}
 
 			series.forEach(async (serie) => {
-				console.log(serie);
 				const seriesContainer = addItem('div', {
 					className: 'series-container collector', //XXX was ending with , 'fade-in');
 					id: serie.id,
@@ -3370,7 +3421,6 @@ console.log(dateString)
 				'GET'
 			);
 			readlists = readlistsPage?.content || [];
-			console.log(readlists)
 			displayReadlists(readlists, seriesGrid);
 		}
 
@@ -3385,7 +3435,6 @@ console.log(dateString)
 				'GET'
 			);
 			collections = collectionsPage?.content || [];
-			console.log(collections)
 			displayCollections(collections, seriesGrid);
 		}
 
@@ -3749,8 +3798,6 @@ console.log(dateString)
 				`/api/v1/collections?page=0&unpaged=true&sort=metadata.titleSort,asc`,
 				'GET'
 			).then((res) => {
-				console.log("XXXXXX")
-				console.log(res.content.length)
 				if (res.content.length == 0) collectionsButton.style.display = 'none';
 			});
 
@@ -4255,7 +4302,7 @@ console.log(dateString)
 						&series_id=${book.seriesId}
 						&book_id=${book.id}
 						&dir=${readingDirection}
-						&pag=${(book.readProgress ? book.readProgress.page : 1)}`);
+						&pg=${(book.readProgress ? book.readProgress.page : 1)}`);
 			});
 
 			item.append(booksItem);
@@ -4519,12 +4566,10 @@ console.log(dateString)
 		async function openCollection(itemId) {
 			let contents = [];
 			const itemData = await callAPI(`c_collections${itemId}`, `/api/v1/collections/${itemId}`);
-			console.log(itemData)
 			const contentsData = (await callAPI(`c_serieslist${itemId}`,
 				`/api/v1/collections/${itemId}/series?page=0&unpaged=true&sort=metadata.numberSort,asc`,
 				'GET'
 			));
-			console.log(contentsData)
 
 			contents = contentsData?.content || [];
 
@@ -4711,11 +4756,11 @@ console.log(dateString)
 						&series_id=${book.seriesId}
 						&book_id=${book.id}
 						&dir=${readingDirection}
-						&pag=${force ? 1 : (book.readProgress ? book.readProgress.page : 1)}`);
+						&pg=${force ? 1 : (book.readProgress ? book.readProgress.page : 1)}`);
 		}
 
 		// Function that setups the reader for a specific book, this is not run directly
-		function openBookReader(libraryId, seriesId, bookId, dir, pag) {
+		function openBookReader(libraryId, seriesId, bookId, dir, pg) {
 			//TODO aggiungere funzione per pulire l'array del preload e quello delle pic
 			Object.entries(dashboardElements).forEach(([name, item]) => {
 				item.homeStrip.innerHTML = '';
@@ -4731,7 +4776,7 @@ console.log(dateString)
 			rd.webtoonScrollRatio = 0;
 			rd.rtl = (dir == 'RIGHT_TO_LEFT');
 
-			rd.currentPage = pag;
+			rd.currentPage = pg;
 
 			rd.spreadsArray = [];
 
@@ -5458,6 +5503,7 @@ console.log(dateString)
 
 			});
 		}
+
 		function computeReaderMaxRatio(serverPageData, spreadThreshold = 1.5) {
 			if (!serverPageData || serverPageData.length === 0) return 1;
 
@@ -5466,7 +5512,28 @@ console.log(dateString)
 
 			// decide orientation by majority
 			const landscapeCount = ratios.filter(r => r > 1).length;
-			const isLandscape = landscapeCount > ratios.length / 2;
+			//	const isLandscape = landscapeCount > ratios.length / 2;
+
+			// if there is at least one portrait page, then
+			// a majority of >1 ratios does NOT mean true landscape — it means "double-spread portrait".
+			const hasPortrait = ratios.some(r => r < 1);
+			let isLandscape;
+			if (!hasPortrait) {
+				// ALL pages are landscape → trust landscape mode
+				isLandscape = true;
+			} else {
+				// We have portrait pages somewhere.
+				// If >80% are wide, but portrait pages exist → assume portrait book with double spreads.
+				const widePercentage = landscapeCount / ratios.length;
+				if (widePercentage > 0.5) {
+					isLandscape = false; // portrait book, spreads
+
+				} else {
+					// Normal book → orientation by majority
+					isLandscape = landscapeCount > ratios.length / 2;
+
+				}
+			}
 
 			// estimate typical single page ratio:
 			// - for landscape: median of ratios > 1
@@ -5932,7 +5999,6 @@ console.log(dateString)
 
 			const currentPage = lastSpread ? spreadObject.spreadRefPage + 1 : spreadObject.spreadRefPage;
 
-			console.log(spreadObject.pageNumL)
 			let pageNumText = rd.webtoon ? spreadObject.pageNumL : spreadObject.pageNumL + ' ' + spreadObject.pageNumR;
 			pageNumText = pageNumText.trim().replace(' ', '￨')
 
@@ -5951,7 +6017,7 @@ console.log(dateString)
 			&series_id=${rd.seriesId}
 			&book_id=${rd.bookId}
 			&dir=${rd.direction}
-			&pag=${rd.currentPage}`;
+			&pg=${rd.currentPage}`;
 
 			if (!rd.incognito) {
 				callAPI(null, `/api/v1/books/${rd.bookId}/read-progress`, 'PATCH', JSON.stringify({ page: rd.currentPage }), false)
@@ -6701,7 +6767,8 @@ console.log(dateString)
 			switch (path) {
 				case '':
 				case 'dashboard':
-					searchInput.value = '';
+					clearSearchField();
+
 					setIncognito(false);
 					if ((params == null) || (params.size == 0)) {
 						await selectHome();
@@ -6717,34 +6784,40 @@ console.log(dateString)
 					break;
 				case 'library':
 					mb.dashboardBin = '';
-					searchInput.value = '';
+					clearSearchField();
+
 					setIncognito(false);
 					await openLibrary(params.get('library_id'), params.get('series_id'));
 					break;
 				case 'series':
-					searchInput.value = '';
+					clearSearchField();
+
 					setIncognito(false);
 					await openSeries(params.get('library_id'), params.get('series_id'), params.get('book_id'));
 					break;
 				case 'readlists':
 					mb.dashboardBin = '';
-					searchInput.value = '';
+					clearSearchField();
+
 					setIncognito(false);
 					await openReadlists();
 					break;
 				case 'readlistsitem':
-					searchInput.value = '';
+					clearSearchField();
+
 					setIncognito(false);
 					await openReadlist(params.get('item_id'));
 					break;
 				case 'collections':
 					mb.dashboardBin = '';
-					searchInput.value = '';
+					clearSearchField();
+
 					setIncognito(false);
 					await openCollections();
 					break;
 				case 'collectionsitem':
-					searchInput.value = '';
+					clearSearchField();
+
 					setIncognito(false);
 					await openCollection(params.get('item_id'));
 					break;
@@ -6754,10 +6827,11 @@ console.log(dateString)
 					await performSearch(params.get('search_string'));
 					break;
 				case 'bookread':
-					await openBookReader(params.get('library_id'), params.get('series_id'), params.get('book_id'), params.get('dir'), params.get('pag'));
+					await openBookReader(params.get('library_id'), params.get('series_id'), params.get('book_id'), params.get('dir'), params.get('pg'));
 					break;
 				case 'offlinebooks':
-					searchInput.value = '';
+					clearSearchField();
+
 					setIncognito(false);
 					await openOfflineBooks(params?.get('book_id'));
 					break;
